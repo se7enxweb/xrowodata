@@ -1,0 +1,28 @@
+
+
+Protocol Implementations
+
+$format=atom / $format=json
+
+$orderby=content_published asc / $orderby=content_published desc
+
+$top=5 / $top=100
+/Categories(1)
+
+Identifies a single Category Entry with key value 1.
+Is described by the Entity Type named "Categories" in the service metadata document.
+
+/Categories(1)/Products
+
+Identifies the collection of Products associated with Category Entry with key value 1.
+Is described by the Navigation Property named "Products" on the "Category" Entity Type in the service metadata document.
+
+
+/Categories(1)/Products?$skip=2
+
+The set of Product Entries (associated with the Category Entry identified by key value 1) starting with the third product.
+
+Examples:
+/frontpage(NodeID=148720)/RefSetnews?$top=10&$skip=0&$orderby=content_published desc
+/frontpage(NodeID=148720)/RefSetnews?$top=10&$skip=10&$orderby=content_published desc
+/frontpage(NodeID=148720)/RefSetnews?$top=10&$skip=20&$orderby=content_published desc

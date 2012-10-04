@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<software>
+    <metadata>
+        <name>xrowodata</name>
+        <version>1.0.0</version>
+        <copyright>Copyright (C) 2003-2011 xrow GmbH</copyright>
+        <license>GPL</license>
+        <info_url>http://projects.ez.no/xrowodata</info_url>
+
+         <software>
+            <uses>
+                <name>OData Producer Library for PHP</name>
+                <license>New BSD license, (http://www.opensource.org/licenses/bsd-license.php)</license>
+                <copyright>2011 Microsoft Corp. (http://www.microsoft.com)</copyright>
+                <version>1.0</version>
+            </uses>
+        </software>
+
+    </metadata>
+
+    <dependencies>
+        <uses>
+            <extension name="oauth" />
+            <extension name="rest" />
+            <extension name="ezprestapiprovider" />
+        </uses>
+    </dependencies>
+</software>
