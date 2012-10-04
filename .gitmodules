@@ -1,0 +1,3 @@
+[submodule "src/ODataProducer"]
+	path = src/ODataProducer
+	url = https://github.com/xrowgmbh/odataphpprod.git
