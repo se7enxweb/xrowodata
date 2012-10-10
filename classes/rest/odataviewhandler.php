@@ -66,9 +66,9 @@ class odataViewHandler implements ezcMvcViewHandler
     {
         self::eZUpdateDebugSettings();
         eZDebug::setHandleType( eZDebug::HANDLE_FROM_PHP );
-        set_include_path( get_include_path() . PATH_SEPARATOR . './extension/xrowodata/OData_Producer_for_PHP/library' );
+        set_include_path( get_include_path() . PATH_SEPARATOR . './extension/xrowodata/src/ODataProducer/library' );
         
-        require_once 'extension' . DIRECTORY_SEPARATOR . 'xrowodata' . DIRECTORY_SEPARATOR . 'OData_Producer_for_PHP' . DIRECTORY_SEPARATOR . 'library' . DIRECTORY_SEPARATOR . 'ODataProducer' . DIRECTORY_SEPARATOR . 'Common' . DIRECTORY_SEPARATOR . 'ClassAutoLoader.php';
+        require_once 'ODataProducer' . DIRECTORY_SEPARATOR . 'Common' . DIRECTORY_SEPARATOR . 'ClassAutoLoader.php';
         
         ClassAutoLoader::register();
         

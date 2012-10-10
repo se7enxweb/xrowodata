@@ -26,3 +26,9 @@ Examples:
 /frontpage(NodeID=148720)/RefSetnews?$top=10&$skip=0&$orderby=content_published desc
 /frontpage(NodeID=148720)/RefSetnews?$top=10&$skip=10&$orderby=content_published desc
 /frontpage(NodeID=148720)/RefSetnews?$top=10&$skip=20&$orderby=content_published desc
+
+How to view your data:
+
+Use http://metasapiens.com/sesame/data-browser/preview/
+
+or use a client SDK to access the data. 

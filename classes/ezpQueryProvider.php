@@ -3,10 +3,17 @@
 use ODataProducer\UriProcessor\ResourcePathProcessor\SegmentParser\KeyDescriptor;
 use ODataProducer\Providers\Metadata\ResourceSet;
 use ODataProducer\Providers\Metadata\ResourceProperty;
-use ODataProducer\Providers\Query\IDataServiceQueryProvider;
+use ODataProducer\Providers\Query\IDataServiceQueryProvider2;
 
-class ezpQueryProvider implements IDataServiceQueryProvider
+class ezpQueryProvider implements IDataServiceQueryProvider2
 {
+    /**
+     * Reference to the custom expression provider
+     *
+     * @var ExpressionProvider
+     */
+    private $ExpressionProvider;
+    
     private $special_resources = array( 
         'LatestNodes' , 
         'Nodes' , 
@@ -14,14 +21,30 @@ class ezpQueryProvider implements IDataServiceQueryProvider
     );
 
     /**
-     * Gets collection of entities belongs to an entity set
-     * 
-     * @param ResourceSet $resourceSet The entity set whose 
-     * entities needs to be fetched
-     * 
-     * @return array(Object)
+     * @see ODataProducer\Providers\IDataServiceQueryProvider2::canApplyQueryOptions()
      */
-    public function getResourceSet( ResourceSet $resourceSet )
+    public function canApplyQueryOptions()
+    {
+        return false;
+    }
+
+    /**
+     * @see ODataProducer\Providers\IDataServiceQueryProvider2::getExpressionProvider()
+     */
+    public function getExpressionProvider()
+    {
+        if ( is_null( $this->ExpressionProvider ) )
+        {
+            $this->ExpressionProvider = new WordPressDSExpressionProvider();
+        }
+        
+        return $this->ExpressionProvider;
+    }
+
+    /**
+     * @see ODataProducer\Providers\IDataServiceQueryProvider2::getResourceSet()
+     */
+    public function getResourceSet( ResourceSet $resourceSet, $filter = null, $select = null, $orderby = null, $top = null, $skiptoken = null )
     {
         eZDebug::writeDebug( "Enter", __METHOD__ . '()' );
         $resourceSetName = $resourceSet->getName();
@@ -42,28 +65,27 @@ class ezpQueryProvider implements IDataServiceQueryProvider
                     $class->attribute( 'identifier' ) 
                 ) 
             );
+            self::ezpOrderByQueryPart( $params, $orderby );
+            self::addLimitOffset( $params, $top, $skiptoken );
+
             self::addParams( $params );
-            if ( ! isset( $params['SortBy'] ) )
+            if ( empty( $params['SortBy'] ) )
             {
                 $node = eZContentObjectTreeNode::fetch( 2 );
                 $params['SortBy'] = $node->sortArray();
             }
+            $GLOBALS['_odata_server_count'] = eZContentObjectTreeNode::subTreeCountByNodeID( $params, 2 );
             $list = eZContentObjectTreeNode::subTreeByNodeID( $params, 2 );
+
             $returnResult = $this->_serializeContentObjectTreeNodes( $list );
+
             return $returnResult;
         }
         return $returnResult;
     }
 
     /**
-     * Gets an entity instance from an entity set identifed by a key
-     * 
-     * @param ResourceSet   $resourceSet   The entity set from which an entity 
-     * needs to be fetched
-     * @param KeyDescriptor $keyDescriptor The key to identify the entity 
-     * to be fetched
-     * 
-     * @return Object/NULL Returns entity instance if found else null
+     * @see ODataProducer\Providers\IDataServiceQueryProvider2::getResourceFromResourceSet()
      */
     public function getResourceFromResourceSet( ResourceSet $resourceSet, KeyDescriptor $keyDescriptor )
     {
@@ -81,8 +103,8 @@ class ezpQueryProvider implements IDataServiceQueryProvider
         
         if ( isset( $namedKeyValues['NodeID'][0] ) and $node = eZContentObjectTreeNode::fetch( (int) $namedKeyValues['NodeID'][0] ) )
         {
-            if( $node instanceof eZContentObjectTreeNode )
-            {            
+            if ( $node instanceof eZContentObjectTreeNode )
+            {
                 if ( in_array( $resourceSetName, $this->special_resources ) )
                 {
                     $returnResult = $this->_serializeContentObjectTreeNode( $node, $resourceSetName );
@@ -94,7 +116,10 @@ class ezpQueryProvider implements IDataServiceQueryProvider
             }
             else
             {
-                eZDebug::writeError( array( 'node is not an instance of eZContentObjectTreeNode', $node ), __METHOD__ );
+                eZDebug::writeError( array( 
+                    'node is not an instance of eZContentObjectTreeNode' , 
+                    $node 
+                ), __METHOD__ );
             }
             $ini = eZINI::instance( 'odata.ini' );
             if ( $ini->hasVariable( 'AfterModificationCacheTTL-' . $class->Identifier, 'AfterModificationCacheTTL' ) )
@@ -131,10 +156,12 @@ class ezpQueryProvider implements IDataServiceQueryProvider
         #    'relevance' , 
         #    'desc' 
         #) );
-        $params['SortArray'] = array( array( 
-            'published' , 
-            'desc' 
-        ) );
+        $params['SortArray'] = array( 
+            array( 
+                'published' , 
+                'desc' 
+            ) 
+        );
         
         if ( isset( $_GET['$top'] ) and (int) $_GET['$top'] <= 100 )
         {
@@ -142,7 +169,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider
         }
         else
         {
-            $params['SearchLimit'] = 10;
+            $params['SearchLimit'] = (int) ezpDataService::getEntitySetPageSize();
         }
         if ( isset( $_GET['$skip'] ) )
         {
@@ -155,20 +182,24 @@ class ezpQueryProvider implements IDataServiceQueryProvider
         }
     }
 
-    static function addParams( &$params )
+    static function addLimitOffset( &$params, $top, $skip )
     {
-        if ( isset( $_GET['$orderby'] ) )
+        if ( isset( $top ) and (int) $top <= 100 )
         {
-            $params['SortBy'] = self::ezpOrderByQueryPart( $_GET['$orderby'] );
-        }
-        if ( isset( $_GET['$top'] ) and (int) $_GET['$top'] <= 100 )
-        {
-            $params['Limit'] = (int) $_GET['$top'];
+            $params['Limit'] = (int) $top;
         }
         else
         {
-            $params['Limit'] = 10;
+            $params['Limit'] = (int) ezpDataService::getEntitySetPageSize();
         }
+        if ( isset( $skip ) )
+        {
+            $params['Offset'] = (int) $skip;
+        }
+    }
+
+    static function addParams( &$params )
+    {
         if ( isset( $_GET['exclude_parent'] ) )
         {
             
@@ -179,11 +210,8 @@ class ezpQueryProvider implements IDataServiceQueryProvider
                 ) 
             );
         }
-        if ( isset( $_GET['$skip'] ) )
-        {
-            $params['Offset'] = (int) $_GET['$skip'];
-        }
-        if ( ! isset( $_GET['tree'] ) )
+        
+        if ( isset( $_GET['tree'] ) && $_GET['tree'] == 0 )
         {
             $params['Depth'] = '1';
             $params['DepthOperator'] = 'le';
@@ -195,83 +223,71 @@ class ezpQueryProvider implements IDataServiceQueryProvider
         }
     }
 
-    static function ezpOrderByQueryPart( $orderby )
+    static function ezpOrderByQueryPart( &$params, InternalOrderByInfo $orderby )
     {
-        list ( $attribute, $order ) = explode( ' ', $orderby );
-        switch ( $order )
+        if ( ! $orderby )
         {
-            case 'desc':
-                $order = false;
-                break;
-            case 'asc':
-                $order = true;
-                break;
-            default:
-                $order = true;
-                break;
+            return false;
         }
-        
-        switch ( $attribute )
+        $params['SortBy'] = array();
+        $orders = $orderby->getOrderByInfo()->getOrderByPathSegments();
+        foreach ( $orders as $orderpart )
         {
-            case 'content_published':
-                $attribute = 'published';
-                break;
-            case 'content_modified':
-                $attribute = 'modified';
-                break;
-            case 'content_state':
-                $attribute = 'state';
-                break;
-            case 'section':
-                $attribute = 'section';
-                break;
-            case 'priority':
-                $attribute = 'priority';
-                break;
-            case 'path':
-                $attribute = 'path';
-                break;
-            case 'owner':
-                $attribute = 'owner';
-                break;
-            case 'name':
-                $attribute = 'name';
-                break;
-            case 'class_name':
-                $attribute = 'class_name';
-                break;
-            case 'class_identifier':
-                $attribute = 'class_identifier';
-                break;
-            case 'depth':
-                $attribute = 'depth';
-                break;
-            default:
-                throw new Exception( "Wrong attribute name" );
-                break;
+            $segments = $orderpart->getSubPathSegments();
+            if ( $segments[0]->getName() == 'NodeID' )
+            {
+                return false;
+            }
+            switch ( $segments[0]->getName() )
+            {
+                case 'content_published':
+                    $attribute = 'published';
+                    break;
+                case 'content_modified':
+                    $attribute = 'modified';
+                    break;
+                case 'content_state':
+                    $attribute = 'state';
+                    break;
+                case 'section':
+                    $attribute = 'section';
+                    break;
+                case 'priority':
+                    $attribute = 'priority';
+                    break;
+                case 'path':
+                    $attribute = 'path';
+                    break;
+                case 'owner':
+                    $attribute = 'owner';
+                    break;
+                case 'name':
+                    $attribute = 'name';
+                    break;
+                case 'class_name':
+                    $attribute = 'class_name';
+                    break;
+                case 'class_identifier':
+                    $attribute = 'class_identifier';
+                    break;
+                case 'depth':
+                    $attribute = 'depth';
+                    break;
+                default:
+                    throw new Exception( "Wrong attribute name '" . $attribute . "' for ordering" );
+                    break;
+            }
+            $params['SortBy'][] = array( 
+                $attribute , 
+                $orderpart->isAscending() 
+            );
         }
-
-        return array( 
-            $attribute , 
-            $order 
-        );
-    
     }
 
     /**
-     * Get related resource set for a resource
-     * 
-     * @param ResourceSet      $sourceResourceSet    The source resource set
-     * @param mixed            $sourceEntityInstance The resource
-     * @param ResourceSet      $targetResourceSet    The resource set of 
-     * the navigation property
-     * @param ResourceProperty $targetProperty       The navigation property to be 
-     * retrieved
-     * 
-     * @return array(Objects)/array() Array of related resource if exists, if no 
-     * related resources found returns empty array
+     * @see ODataProducer\Providers\IDataServiceQueryProvider2::getRelatedResourceSet()
      */
-    public function getRelatedResourceSet( ResourceSet $sourceResourceSet, $sourceEntityInstance, ResourceSet $targetResourceSet, ResourceProperty $targetProperty )
+    public function getRelatedResourceSet( ResourceSet $sourceResourceSet, $sourceEntityInstance, ResourceSet $targetResourceSet, ResourceProperty $targetProperty, $filter = null, $select = null, $orderby = null, $top = null, $skip = null )
     {
         eZDebug::writeDebug( "Enter", __METHOD__ . '()' );
         
@@ -294,7 +310,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider
                         $navigationPropName 
                     ) 
                 );
-                $params['SortBy'] = self::ezpOrderByQueryPart( 'content_published desc' );
+                self::ezpOrderByQueryPart( $params, 'content_published desc' );
                 $params['Limit'] = 1;
                 $params['Depth'] = false;
                 $params['DepthOperator'] = false;
@@ -314,6 +330,8 @@ class ezpQueryProvider implements IDataServiceQueryProvider
             
             $params['SearchContentClassID'] = $class->ID;
             
+            self::ezpOrderByQueryPart( $params, $orderby );
+            self::addLimitOffset( $params, $top, $skip );
             self::addSearchParams( $params );
             $searchResult = eZSearch::search( $_GET['search'], $params );
             if ( $searchResult === false )
@@ -331,8 +349,11 @@ class ezpQueryProvider implements IDataServiceQueryProvider
                     $navigationPropName 
                 ) 
             );
+            
+            self::ezpOrderByQueryPart( $params, $orderby );
+            self::addLimitOffset( $params, $top, $skip );
             self::addParams( $params );
-            if ( ! isset( $params['SortBy'] ) )
+            if ( empty( $params['SortBy'] ) )
             {
                 $node = eZContentObjectTreeNode::fetch( $sourceEntityInstance->NodeID );
                 $params['SortBy'] = $node->sortArray();
@@ -344,19 +365,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider
     }
 
     /**
-     * Gets a related entity instance from an entity set identifed by a key
-     * 
-     * @param ResourceSet      $sourceResourceSet    The entity set related to
-     * the entity to be fetched.
-     * @param object           $sourceEntityInstance The related entity instance.
-     * @param ResourceSet      $targetResourceSet    The entity set from which
-     * entity needs to be fetched.
-     * @param ResourceProperty $targetProperty       The metadata of the target 
-     * property.
-     * @param KeyDescriptor    $keyDescriptor        The key to identify the entity 
-     * to be fetched.
-     * 
-     * @return Object/NULL Returns entity instance if found else null
+     * @see ODataProducer\Providers\IDataServiceQueryProvider2::getResourceFromRelatedResourceSet()
      */
     public function getResourceFromRelatedResourceSet( ResourceSet $sourceResourceSet, $sourceEntityInstance, ResourceSet $targetResourceSet, ResourceProperty $targetProperty, KeyDescriptor $keyDescriptor )
     {
@@ -367,16 +376,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider
     }
 
     /**
-     * Get related resource for a resource
-     * 
-     * @param ResourceSet      $sourceResourceSet    The source resource set
-     * @param mixed            $sourceEntityInstance The source resource
-     * @param ResourceSet      $targetResourceSet    The resource set of 
-     * the navigation property
-     * @param ResourceProperty $targetProperty       The navigation property to be 
-     * retrieved
-     * 
-     * @return Object/null The related resource if exists else null
+     * @see ODataProducer\Providers\IDataServiceQueryProvider2::getRelatedResourceReference()
      */
     public function getRelatedResourceReference( ResourceSet $sourceResourceSet, $sourceEntityInstance, ResourceSet $targetResourceSet, ResourceProperty $targetProperty )
     {
@@ -442,13 +442,16 @@ class ezpQueryProvider implements IDataServiceQueryProvider
         
         foreach ( $list as $item )
         {
-            if( $item instanceof eZContentObjectTreeNode )
+            if ( $item instanceof eZContentObjectTreeNode )
             {
                 $result[] = $this->_serializeContentObjectTreeNode( $item );
             }
             else
             {
-                eZDebug::writeError( array( 'item is not an instance of eZContentObjectTreeNode', $item ), __METHOD__ );
+                eZDebug::writeError( array( 
+                    'item is not an instance of eZContentObjectTreeNode' , 
+                    $item 
+                ), __METHOD__ );
             }
         }
         return $result;
@@ -456,7 +459,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider
 
     private function _serializeContentObjectTreeNode( eZContentObjectTreeNode $node, $ClassSpecial = false )
     {
-        $GLOBALS['ODATARecursionCounter']++;
+        $GLOBALS['ODATARecursionCounter'] ++;
         $co = $node->attribute( 'object' );
         if ( ! $ClassSpecial )
         {
@@ -485,41 +488,36 @@ class ezpQueryProvider implements IDataServiceQueryProvider
         $object->ClassIdentifier = $node->attribute( 'class_identifier' );
         $object->content_published = $co->attribute( 'published' );
         $object->content_modified = $co->attribute( 'modified' );
-        self::transformRelatedContentObjectsToRemoteLinks( $co->attribute( 'related_contentobject_array' ), $object );
         $dm = $node->attribute( 'data_map' );
-
+        
         /* @var $attribute eZContentObjectAttribute */
         foreach ( $dm as $key => $attribute )
         {
             if ( $attribute )
             {
+                
                 switch ( $attribute->DataTypeString )
                 {
                     case 'ezimage':
-                        $doc = new DOMDocument( '1.0', 'utf-8' );
+                        if ( ! $attribute->hasContent() )
+                        {
+                            $object->{$key} = NULL;
+                            continue;
+                        }
+                        $image = new ODATAImage();
                         
                         if ( $attribute->hasContent() )
                         {
                             $content = $attribute->content();
                             $alternativeText = $content->attribute( 'alternative_text' );
-
-                            $doc->formatOutput = true;
-                            $root = $doc->createElement( 'ezimage' );
-                            
-                            $root = $doc->appendChild( $root );
                             
                             if ( $alternativeText )
                             {
-                                $textNode = $doc->createElement( 'text' );
-                                $textNode = $root->appendChild( $textNode );
-                                
-                                $text = $doc->createTextNode( $alternativeText );
-                                $text = $textNode->appendChild( $text );
+                                $image->text = $alternativeText;
                             }
                             foreach ( $content->attributes() as $alias )
                             {
-                                $ini = eZINI::instance( "odata.ini" );
-                                if ( $ini->hasVariable( 'Settings', 'ImageAliasList' ) and ! in_array( $alias, $ini->variable( 'Settings', 'ImageAliasList' ) ) )
+                                if ( ! in_array( $alias, xrowODataUtils::ImageAliasList() ) )
                                 {
                                     continue;
                                 }
@@ -528,30 +526,25 @@ class ezpQueryProvider implements IDataServiceQueryProvider
                                     case 'alternative_text':
                                     case 'original_filename':
                                     case 'is_valid':
-                                    break;
+                                        break;
                                     default:
                                         $data = $content->attribute( $alias );
                                         if ( $data['url'] )
                                         {
-                                            $urlNode = $doc->createElement( 'alias' );
-                                            $urlNode->setAttribute( 'type', $alias );
-                                            $urlNode = $root->appendChild( $urlNode );
-                                            
-                                            $url = $doc->createTextNode( $data['url'] );
-                                            $url = $urlNode->appendChild( $url );
+                                            $image->{$alias} = 'http://' . $_SERVER['HTTP_HOST'] . '/' . $data['url'];
                                         }
-                                    break;
+                                        break;
                                 }
                             }
                         }
-                        $object->{$key} = $doc;
+                        $object->{$key} = $image;
                         break;
-
+                    
                     case 'ezauthorrelation':
                         $text = "<author>";
                         if ( trim( $attribute->attribute( 'data_text' ) ) == '' )
                         {
-                            $obj = eZContentObject::fetch( $co->attribute('owner_id') );
+                            $obj = eZContentObject::fetch( $co->attribute( 'owner_id' ) );
                         }
                         else
                         {
@@ -560,7 +553,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider
                         if ( $obj )
                         {
                             $dm = $obj->dataMap();
-                            if( $dm['code']->hasContent() )
+                            if ( $dm['code']->hasContent() )
                             {
                                 $text .= "<short>" . $dm['code']->attribute( 'data_text' ) . "</short>";
                             }
@@ -570,10 +563,10 @@ class ezpQueryProvider implements IDataServiceQueryProvider
                             {
                                 if ( $attribute2->DataTypeString == 'ezuser' and $attribute2->hasContent() )
                                 {
-                                    if( $attribute2->content()->attribute( 'is_enabled' ) )
-									{
-									    $text .= "<email>" . $attribute2->content()->attribute( 'email' ) . "</email>";
-									}
+                                    if ( $attribute2->content()->attribute( 'is_enabled' ) )
+                                    {
+                                        $text .= "<email>" . $attribute2->content()->attribute( 'email' ) . "</email>";
+                                    }
                                 }
                                 elseif ( $attribute2->DataTypeString == 'ezimage' and $attribute2->hasContent() )
                                 {
@@ -606,9 +599,9 @@ class ezpQueryProvider implements IDataServiceQueryProvider
                         $text .= "</author>";
                         $object->{$key} = $text;
                         break;
-
+                    
                     case 'ezboolean':
-                        if( $attribute->content() )
+                        if ( $attribute->content() )
                         {
                             $object->{$key} = true;
                         }
@@ -617,14 +610,31 @@ class ezpQueryProvider implements IDataServiceQueryProvider
                             $object->{$key} = false;
                         }
                         break;
-
+                    case 'ezobjectrelation':
+                        if ( ! $attribute->hasContent() )
+                        {
+                            $object->{$key} = NULL;
+                            continue;
+                        }
+                        $co = $attribute->content();
+                        $value = new ContentObject();
+                        $value->Name = $co->name();
+                        $value->ContentObjectID = $co->ID;
+                        $value->Guid = $co->RemoteID;
+                        $value->MainNodeID = $co->mainNodeID();
+                        $value->ClassIdentifier = $co->contentClassIdentifier();
+                        $object->{$key} = $value;
+                        break;
+                    case 'xrowgis':
+                        $object->{$key} = $attribute->toString();
+                        break;
                     case 'xrowmetadata':
                         $xmlString = $attribute->attribute( 'data_text' );
                         $doc = new DOMDocument( '1.0', 'utf-8' );
                         $doc->loadXML( $xmlString );
                         $object->{$key} = $doc;
                         break;
-
+                    
                     case 'ezxmltext':
                         $xmlString = $attribute->attribute( 'data_text' );
                         $doc = new DOMDocument( '1.0', 'utf-8' );
@@ -640,10 +650,9 @@ class ezpQueryProvider implements IDataServiceQueryProvider
                             self::transformLinksToRemoteLinks( $objects, $object );
                             self::transformLinksToRemoteLinks( $embedsInline, $object );
                         }
-
-                        $object->{$key} = $doc;
+                        $object->{$key} = $doc->saveXML();
                         break;
-
+                    
                     default:
                         $object->{$key} = $attribute->toString();
                         break;
@@ -654,7 +663,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider
                 }
             }
         }
-        $GLOBALS['ODATARecursionCounter']--;
+        $GLOBALS['ODATARecursionCounter'] --;
         return $object;
     }
 
@@ -687,21 +696,8 @@ class ezpQueryProvider implements IDataServiceQueryProvider
                     $node->setAttribute( 'object_remote_id', $object->attribute( 'remote_id' ) );
                     $node->setAttribute( 'node_id', $object->attribute( 'main_node_id' ) );
                     $node->setAttribute( 'contentclass', $object->contentClassIdentifier() );
-                    if ( $GLOBALS['ODATARecursionCounter'] === 1 && class_exists( $object->contentClassIdentifier() ) )
-                    {
-                        $objMainNode = $object->mainNode();
-                        if( $objMainNode instanceof eZContentObjectTreeNode )
-                        {
-                            $objecttmp = self::_serializeContentObjectTreeNode( $objMainNode );
-                            $objectstore->related_objects[] = $objecttmp;
-                        }
-                        else
-                        {
-                            eZDebug::writeError( array( 'objMainNode is not an instance of eZContentObjectTreeNode', $object ), __METHOD__ );
-                        }
-                    }
                 }
-
+                
                 if ( $isObject )
                 {
                     $node->removeAttribute( 'id' );
@@ -721,19 +717,6 @@ class ezpQueryProvider implements IDataServiceQueryProvider
                     $node->setAttribute( 'node_remote_id', $nodeData->attribute( 'remote_id' ) );
                     $node->setAttribute( 'node_id', $nodeData->attribute( 'node_id' ) );
                     $node->setAttribute( 'contentclass', $nodeData->classIdentifier() );
-                    if ( $GLOBALS['ODATARecursionCounter'] === 1 && class_exists( $nodeData->classIdentifier() ) )
-                    {
-                        if( $nodeData instanceof eZContentObjectTreeNode )
-                        {
-                            $objecttmp = self::_serializeContentObjectTreeNode( $nodeData );
-                            $objectstore->related_objects[] = $objecttmp;
-                        }
-                        else
-                        {
-                            eZDebug::writeError( array( 'nodeData is not an instance of eZContentObjectTreeNode', $nodeData ), __METHOD__ );
-                        }
-                        
-                    }
                 }
             }
         }
@@ -743,22 +726,9 @@ class ezpQueryProvider implements IDataServiceQueryProvider
     {
         foreach ( $objectList as $object )
         {
-            if( $object instanceof eZContentObject )
+            if ( $object instanceof eZContentObject )
             {
                 $objectID = $object->attribute( 'id' );
-                if ( $GLOBALS['ODATARecursionCounter'] === 1 && class_exists( $object->contentClassIdentifier() ) )
-                {
-                    $objMainNode = $object->mainNode();
-                    if( $objMainNode instanceof eZContentObjectTreeNode )
-                    {
-                        $objecttmp = self::_serializeContentObjectTreeNode( $objMainNode );
-                        $objectstore->related_objects[] = $objecttmp;
-                    }
-                    else
-                    {
-                        eZDebug::writeError( array( 'objMainNode is not an instance of eZContentObjectTreeNode', $object ), __METHOD__ );
-                    }
-               }
             }
         }
     }

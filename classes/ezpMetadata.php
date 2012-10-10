@@ -11,42 +11,11 @@ use ODataProducer\Providers\Metadata\ResourceTypeKind;
 use ODataProducer\Providers\Metadata\ResourceType;
 use ODataProducer\Common\InvalidOperationException;
 use ODataProducer\Providers\Metadata\IDataServiceMetadataProvider;
-
-require_once 'ODataProducer'.DIRECTORY_SEPARATOR.'Providers'.DIRECTORY_SEPARATOR.'Metadata'.DIRECTORY_SEPARATOR.'IDataServiceMetadataProvider.php';
 use ODataProducer\Providers\Metadata\ServiceBaseMetadata;
 
-//Begin Resource Classes
-class ContentObject
-{
-    public $ContentObjectID;
-    public $Name;
-    public $Guid;
-    public $Date;
-    public $Nodes;
-
-}
-
-class Node
-{
-    public $NodeID;
-    public $Name;
-    public $Guid;
-}
-
-/**
- * Create eZ Publish metadata.
- * 
- * @category  Service
- * @package   WordPress
- * @author    Bibin Kurian <odataphpproducer_alias@microsoft.com>
- * @copyright 2011 Microsoft Corp. (http://www.microsoft.com)
- * @license   New BSD license, (http://www.opensource.org/licenses/bsd-license.php)
- * @version   Release: 1.0
- * @link      http://odataphpproducer.codeplex.com
- */
 class ezpMetadata
 {
-    const REFSET_IDENTIFIER = 'RefSet';
+    const REFSET_IDENTIFIER = 'Related_';
 
     /**
      * create metadata
@@ -83,21 +52,53 @@ class ezpMetadata
         eval( 'class ODATAeZXML { public $xml = ""; }' );
         $ezxmlComplexType = $metadata->addComplexType( new ReflectionClass( 'ODATAeZXML' ), 'ODATAeZXML', 'eZPublish', null );
         
-        eval( 'class ODATAImage { public $xml = ""; }' );
+        $ODATAImage = 'class ODATAImage { public $text = "";';
+        
+        foreach ( xrowODataUtils::ImageAliasList() as $alias )
+        {
+            $ODATAImage .= 'public $' . $alias . ' = "";';
+        }
+        $ODATAImage .= '}';
+        eval( $ODATAImage );
         $ezimageComplexType = $metadata->addComplexType( new ReflectionClass( 'ODATAImage' ), 'ODATAImage', 'eZPublish', null );
         
-        eval( 'class ODATAxrowMetaData { public $xml = ""; }' );
-        $xrowmetadataComplexType = $metadata->addComplexType( new ReflectionClass( 'ODATAxrowMetaData' ), 'ODATAxrowMetaData', 'eZPublish', null );
+        $metadata->addPrimitiveProperty( $ezimageComplexType, 'text', EdmPrimitiveType::STRING );
 
+        foreach ( xrowODataUtils::ImageAliasList() as $alias )
+        {
+            $metadata->addPrimitiveProperty( $ezimageComplexType, $alias, EdmPrimitiveType::STRING );
+        }
+
+        $xrowgisComplexType = $metadata->addComplexType( new ReflectionClass( 'ODataGIS' ), 'ODataGIS', 'eZPublish', null );
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'latitude', EdmPrimitiveType::DOUBLE );
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'longitude', EdmPrimitiveType::DOUBLE );
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'street', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'zip', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'city', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'state', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'country', EdmPrimitiveType::STRING );
+
+        $ezcontentobjectComplexType = $metadata->addComplexType( new ReflectionClass( 'ContentObject' ), 'ContentObject', 'eZPublish', null );
+        $metadata->addPrimitiveProperty( $ezcontentobjectComplexType, 'ContentObjectID', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $ezcontentobjectComplexType, 'Name', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $ezcontentobjectComplexType, 'Guid', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $ezcontentobjectComplexType, 'MainNodeID', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $ezcontentobjectComplexType, 'ClassIdentifier', EdmPrimitiveType::STRING );
+        
+        $xrowmetadataComplexType = $metadata->addComplexType( new ReflectionClass( 'ODataMetaData' ), 'ODataMetaData', 'eZPublish', null );
+        $metadata->addPrimitiveProperty( $xrowmetadataComplexType, 'title', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $xrowmetadataComplexType, 'keywords', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $xrowmetadataComplexType, 'description', EdmPrimitiveType::STRING );
+        
         eval( 'class ODATAxrowArrayData { public $data = ""; }' );
         $xrowArrayDataComplexType = $metadata->addComplexType( new ReflectionClass( 'ODATAxrowArrayData' ), 'ODATAxrowArrayData', 'eZPublish', null );
-
+        
         $listtofilter = eZContentClass::fetchList();
         $ini = eZINI::instance( "odata.ini" );
         $list = array();
-        if( $ini->hasVariable( 'Settings', 'AvailableClassList' ) and $listtofilter and is_array( $ini->variable( 'Settings', 'AvailableClassList' ) ))
+        if ( $ini->hasVariable( 'Settings', 'AvailableClassList' ) and $listtofilter and is_array( $ini->variable( 'Settings', 'AvailableClassList' ) ) )
         {
-            foreach( $listtofilter as $class )
+            foreach ( $listtofilter as $class )
             {
                 if ( in_array( $class->attribute( 'identifier' ), $ini->variable( 'Settings', 'AvailableClassList' ) ) )
                 {
@@ -109,9 +110,9 @@ class ezpMetadata
         {
             $list = $listtofilter;
         }
-
+        
         $metaclasses = array();
-
+        
         $classnames = array_keys( $metaclasses );
         /* @var $class eZContentClass */
         foreach ( $list as $class )
@@ -127,8 +128,8 @@ class ezpMetadata
             $classstr .= 'public $ClassIdentifier;';
             $classstr .= 'public $content_published = 0;';
             $classstr .= 'public $content_modified = 0;';
-            $classstr .= 'public $related_objects;';
-            #$classstr .= 'public $Guid = "";';
+            $classstr .= 'public $Guid = "";';
+            
             foreach ( $class->fetchAttributes() as $attribute )
             {
                 $classstr .= "public $" . $attribute->attribute( 'identifier' ) . " = '';";
@@ -137,7 +138,7 @@ class ezpMetadata
             {
                 $classstr .= 'public $' . self::REFSET_IDENTIFIER . $class2->attribute( 'identifier' ) . '= "";';
             }
-
+            
             $classstr .= " };";
             eval( $classstr );
             $metaclasses[$class->attribute( 'identifier' )]['Type'] = $metadata->addEntityType( new ReflectionClass( $class->attribute( 'identifier' ) ), $class->attribute( 'identifier' ), 'eZPublish' );
@@ -145,7 +146,7 @@ class ezpMetadata
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'MainNodeID', EdmPrimitiveType::INT32 );
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'ContentObjectID', EdmPrimitiveType::INT32 );
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'ParentNodeID', EdmPrimitiveType::INT32 );
-            #$metadata->addPrimitiveProperty($metaclasses[$class->attribute( 'identifier' )]['Type'], 'Guid', EdmPrimitiveType::GUID);
+            $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'Guid', EdmPrimitiveType::GUID );
 
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'ContentObjectName', EdmPrimitiveType::STRING );
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'ParentName', EdmPrimitiveType::STRING );
@@ -153,7 +154,7 @@ class ezpMetadata
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'ClassIdentifier', EdmPrimitiveType::STRING );
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'content_published', EdmPrimitiveType::DATETIME );
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'content_modified', EdmPrimitiveType::DATETIME );
-            $metadata->addComplexProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'related_objects', $xrowArrayDataComplexType );
+
             foreach ( $class->fetchAttributes() as $attribute )
             {
                 switch ( $attribute->DataTypeString )
@@ -169,16 +170,19 @@ class ezpMetadata
                         break;
                     case 'ezauthorrelation':
                         $metadata->addComplexProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), $ezauthorrelationComplexType );
-                    break;
+                        break;
+                    case 'xrowgis':
+                        $metadata->addComplexProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), $xrowgisComplexType );
+                        break;
                     case 'xrowmetadata':
                         $metadata->addComplexProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), $xrowmetadataComplexType );
-                    break;
+                        break;
                     case 'ezimage':
                         $metadata->addComplexProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), $ezimageComplexType );
                         break;
                     case 'ezxmltext':
-                        $metadata->addComplexProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), $ezxmlComplexType );
-                        #$metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), EdmPrimitiveType::STRING );
+                        #$metadata->addComplexProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), $ezxmlComplexType );
+                        $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), EdmPrimitiveType::STRING );
                         break;
                     case 'ezboolean':
                         $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), EdmPrimitiveType::BOOLEAN );
@@ -189,8 +193,10 @@ class ezpMetadata
                         $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), EdmPrimitiveType::DATETIME );
                         break;
                     case 'ezinteger':
-                    case 'ezobjectrelation':
                         $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), EdmPrimitiveType::INT16 );
+                        break;
+                    case 'ezobjectrelation':
+                    	$metadata->addComplexProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), $ezcontentobjectComplexType );
                         break;
                     case 'ezfloat':
                     case 'ezprice':
@@ -202,7 +208,7 @@ class ezpMetadata
                 }
             }
         }
-
+        
         //add resource to metadata
         foreach ( $metaclasses as $classname => $metaclass )
         {
@@ -228,7 +234,7 @@ class ezpMetadata
         $classstr .= 'public $ClassIdentifier;';
         $classstr .= 'public $content_published = 0;';
         $classstr .= 'public $content_modified = 0;';
-        $classstr .= 'public $related_objects;';
+        
         foreach ( $list as $class2 )
         {
             $classstr .= 'public $' . self::REFSET_IDENTIFIER . $class2->attribute( 'identifier' ) . '= "";';
@@ -236,9 +242,9 @@ class ezpMetadata
         $classstr .= " };";
         eval( $classstr );
         $LatestNodesByListEntityType = $metadata->addEntityType( new ReflectionClass( 'LatestNodes' ), 'LatestNodes', 'eZPublish' );
-
+        
         $LatestNodesResourceSet = $metadata->addResourceSet( 'LatestNodes', $LatestNodesByListEntityType );
-
+        
         $metadata->addKeyProperty( $LatestNodesByListEntityType, 'NodeID', EdmPrimitiveType::INT32 );
         $metadata->addPrimitiveProperty( $LatestNodesByListEntityType, 'MainNodeID', EdmPrimitiveType::INT32 );
         $metadata->addPrimitiveProperty( $LatestNodesByListEntityType, 'ContentObjectID', EdmPrimitiveType::INT32 );
@@ -249,13 +255,12 @@ class ezpMetadata
         $metadata->addPrimitiveProperty( $LatestNodesByListEntityType, 'ClassIdentifier', EdmPrimitiveType::STRING );
         $metadata->addPrimitiveProperty( $LatestNodesByListEntityType, 'content_published', EdmPrimitiveType::DATETIME );
         $metadata->addPrimitiveProperty( $LatestNodesByListEntityType, 'content_modified', EdmPrimitiveType::DATETIME );
-        $metadata->addComplexProperty( $LatestNodesByListEntityType, 'related_objects', $xrowArrayDataComplexType );
-
+        
         foreach ( $classnames as $classname )
         {
             $metadata->addResourceSetReferenceProperty( $LatestNodesByListEntityType, self::REFSET_IDENTIFIER . $classname, $metaclasses[$classname]['ResourceSet'] );
         }
-
+        
         return $metadata;
     }
 }
