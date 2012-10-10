@@ -7,7 +7,7 @@ $client = xrowODataClient::factory( $EntpointURI );
 /* get the list of images */
 $query = $client->image();
 $response = $query->Execute();
-
+var_dump($response);
 foreach($response->Result as $image)
 {
 	echo "\nNodeID: " . $image->MainNodeID . "\tNodename: " . $image->ContentObjectName ;
