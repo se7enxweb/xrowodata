@@ -47,13 +47,17 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
     public function getResourceSet( ResourceSet $resourceSet, $filter = null, $select = null, $orderby = null, $top = null, $skiptoken = null )
     {
         eZDebug::writeDebug( "Enter", __METHOD__ . '()' );
+        if ( $select !== null )
+        {
+            throw new Exception( '(' . __METHOD__ . ') Select not supported ' ) ;
+        }
         $resourceSetName = $resourceSet->getName();
         /* @var $class eZContentClass */
         $class = eZContentClass::fetchByIdentifier( $resourceSetName );
-        
+
         if ( ! in_array( $resourceSetName, $this->special_resources ) and $class === null )
         {
-            die( '(' . __METHOD__ . ') Unknown resource set ' . $resourceSetName );
+            throw new Exception( '(' . __METHOD__ . ') Unknown resource set ' . $resourceSetName ) ;
         }
         
         $returnResult = array();
