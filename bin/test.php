@@ -5,14 +5,17 @@ $EntpointURI = 'http://admin:publish@trunk.example.com/api/odata/v1/ezpublish.sv
 $client = xrowODataClient::factory( $EntpointURI );
 
 /* get the list of images */
-$query = $client->image();
-$response = $query->Execute();
-var_dump($response);
-foreach($response->Result as $image)
+try
 {
-	echo "\nNodeID: " . $image->MainNodeID . "\tNodename: " . $image->ContentObjectName ;
+    $response = $client->image()->IncludeTotalCount()->Execute();
+    echo "\nTotal number of images:" . $response->TotalCount();
+    foreach ( $response->Result as $image )
+    {
+        echo "\nNodeID: " . $image->MainNodeID . "\tNodename: " . $image->ContentObjectName;
+    }
 }
-
-/* get the list of images by url */
-$response = $client->Execute("image");
+catch ( DataServiceRequestException $exception )
+{
+    echo $exception->Response->getError();
+}
 
