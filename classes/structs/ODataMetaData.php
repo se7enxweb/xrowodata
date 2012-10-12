@@ -2,7 +2,7 @@
 
 class ODataMetaData
 {
-    public $title = '';
-    public $keywords = '';
-    public $description = '';
+    public $title;
+    public $keywords;
+    public $description;
 }

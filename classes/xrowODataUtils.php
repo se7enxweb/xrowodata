@@ -19,4 +19,17 @@ class xrowODataUtils
         }
         return $return;
     }
+    static public function unsupportedDatatypes()
+    {
+        $return = array();
+        $ini = eZINI::instance( "odata.ini" );
+        if ( $ini->hasVariable( 'Settings', 'UnsupportedDatatypeList' ) )
+        {
+            foreach ( $ini->variable( 'Settings', 'UnsupportedDatatypeList' ) as $alias )
+            {
+                $return[] = $alias;
+            }
+        }
+        return $return;
+    }
 }

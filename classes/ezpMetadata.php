@@ -63,21 +63,21 @@ class ezpMetadata
         $ezimageComplexType = $metadata->addComplexType( new ReflectionClass( 'ODATAImage' ), 'ODATAImage', 'eZPublish', null );
         
         $metadata->addPrimitiveProperty( $ezimageComplexType, 'text', EdmPrimitiveType::STRING );
-
+        
         foreach ( xrowODataUtils::ImageAliasList() as $alias )
         {
             $metadata->addPrimitiveProperty( $ezimageComplexType, $alias, EdmPrimitiveType::STRING );
         }
-
+        
         $xrowgisComplexType = $metadata->addComplexType( new ReflectionClass( 'ODataGIS' ), 'ODataGIS', 'eZPublish', null );
-        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'latitude', EdmPrimitiveType::DOUBLE );
-        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'longitude', EdmPrimitiveType::DOUBLE );
-        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'street', EdmPrimitiveType::STRING );
-        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'zip', EdmPrimitiveType::STRING );
-        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'city', EdmPrimitiveType::STRING );
-        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'state', EdmPrimitiveType::STRING );
+        #$metadata->addPrimitiveProperty( $xrowgisComplexType, 'latitude', EdmPrimitiveType::DOUBLE );
+        #$metadata->addPrimitiveProperty( $xrowgisComplexType, 'longitude', EdmPrimitiveType::DOUBLE );
+        #$metadata->addPrimitiveProperty( $xrowgisComplexType, 'street', EdmPrimitiveType::STRING );
+        #$metadata->addPrimitiveProperty( $xrowgisComplexType, 'zip', EdmPrimitiveType::STRING );
+        #$metadata->addPrimitiveProperty( $xrowgisComplexType, 'city', EdmPrimitiveType::STRING );
+        #$metadata->addPrimitiveProperty( $xrowgisComplexType, 'state', EdmPrimitiveType::STRING );
         $metadata->addPrimitiveProperty( $xrowgisComplexType, 'country', EdmPrimitiveType::STRING );
-
+        
         $ezcontentobjectComplexType = $metadata->addComplexType( new ReflectionClass( 'ContentObject' ), 'ContentObject', 'eZPublish', null );
         $metadata->addPrimitiveProperty( $ezcontentobjectComplexType, 'ContentObjectID', EdmPrimitiveType::STRING );
         $metadata->addPrimitiveProperty( $ezcontentobjectComplexType, 'Name', EdmPrimitiveType::STRING );
@@ -114,6 +114,7 @@ class ezpMetadata
         $metaclasses = array();
         
         $classnames = array_keys( $metaclasses );
+        $GLOBALS['ODATACLASSMATRIX'] = array();
         /* @var $class eZContentClass */
         foreach ( $list as $class )
         {
@@ -132,6 +133,10 @@ class ezpMetadata
             
             foreach ( $class->fetchAttributes() as $attribute )
             {
+                if ( in_array( $attribute->DataTypeString, xrowODataUtils::unsupportedDatatypes() ) )
+                {
+                    continue;
+                }
                 $classstr .= "public $" . $attribute->attribute( 'identifier' ) . " = '';";
             }
             foreach ( $list as $class2 )
@@ -147,7 +152,7 @@ class ezpMetadata
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'ContentObjectID', EdmPrimitiveType::INT32 );
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'ParentNodeID', EdmPrimitiveType::INT32 );
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'Guid', EdmPrimitiveType::GUID );
-
+            
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'ContentObjectName', EdmPrimitiveType::STRING );
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'ParentName', EdmPrimitiveType::STRING );
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'URLAlias', EdmPrimitiveType::STRING );
@@ -157,6 +162,13 @@ class ezpMetadata
 
             foreach ( $class->fetchAttributes() as $attribute )
             {
+            	$GLOBALS['ODATACLASSMATRIX'][$class->attribute( 'identifier' )][$attribute->attribute( 'identifier' )] = $attribute->attribute( 'identifier' );
+
+                if ( in_array( $attribute->DataTypeString, xrowODataUtils::unsupportedDatatypes() ) )
+                {
+                    continue;
+                }
+
                 switch ( $attribute->DataTypeString )
                 {
                     case 'ezstring':
@@ -172,6 +184,7 @@ class ezpMetadata
                         $metadata->addComplexProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), $ezauthorrelationComplexType );
                         break;
                     case 'xrowgis':
+                    	#$metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), EdmPrimitiveType::STRING );
                         $metadata->addComplexProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), $xrowgisComplexType );
                         break;
                     case 'xrowmetadata':
@@ -196,7 +209,7 @@ class ezpMetadata
                         $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), EdmPrimitiveType::INT16 );
                         break;
                     case 'ezobjectrelation':
-                    	$metadata->addComplexProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), $ezcontentobjectComplexType );
+                        $metadata->addComplexProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), $ezcontentobjectComplexType );
                         break;
                     case 'ezfloat':
                     case 'ezprice':

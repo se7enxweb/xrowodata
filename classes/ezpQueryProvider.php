@@ -1,5 +1,6 @@
 <?php
 
+use ODataProducer\Providers\Metadata\Type\Double;
 use ODataProducer\UriProcessor\ResourcePathProcessor\SegmentParser\KeyDescriptor;
 use ODataProducer\Providers\Metadata\ResourceSet;
 use ODataProducer\Providers\Metadata\ResourceProperty;
@@ -104,7 +105,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         }
         
         $namedKeyValues = $keyDescriptor->getValidatedNamedValues();
-        
+
         if ( isset( $namedKeyValues['NodeID'][0] ) and $node = eZContentObjectTreeNode::fetch( (int) $namedKeyValues['NodeID'][0] ) )
         {
             if ( $node instanceof eZContentObjectTreeNode )
@@ -143,7 +144,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             {
                 $GLOBALS['EZ_ODATA_CACHE_TIME'] = (int) $ini->variable( 'AfterModificationCacheTTL-' . $class->Identifier, 'DefaultCacheTTL' );
             }
-            
+
             return $returnResult;
         }
         
@@ -448,7 +449,12 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         {
             if ( $item instanceof eZContentObjectTreeNode )
             {
-                $result[] = $this->_serializeContentObjectTreeNode( $item );
+            	try {
+            		$result[] = $this->_serializeContentObjectTreeNode( $item );
+            	} catch (Exception $e) {
+            		eZDebug::writeError( $e->getMessage(), __METHOD__ );
+            	}
+                
             }
             else
             {
@@ -493,19 +499,30 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         $object->content_published = $co->attribute( 'published' );
         $object->content_modified = $co->attribute( 'modified' );
         $dm = $node->attribute( 'data_map' );
+        $testArray = $GLOBALS['ODATACLASSMATRIX'][$node->attribute( 'class_identifier' )];
+
+        if (count( array_diff(array_keys($dm), array_keys($testArray) ) ) > 0 )
+        {
+        	throw new Exception( 'Content attributes do not match contentclass attributes of object #' . $node->ContentObjectID . ' wiht class ' . $node->attribute( 'class_identifier' ));
+        }
         
         /* @var $attribute eZContentObjectAttribute */
         foreach ( $dm as $key => $attribute )
         {
+        	unset($testArray[$attribute->contentClassAttributeIdentifier()]);
+        	if ( in_array( $attribute->DataTypeString, xrowODataUtils::unsupportedDatatypes() ) )
+        	{
+        		continue;
+        	}
+
             if ( $attribute )
             {
-                
                 switch ( $attribute->DataTypeString )
                 {
                     case 'ezimage':
                         if ( ! $attribute->hasContent() )
                         {
-                            $object->{$key} = NULL;
+                            $object->{$key} = false;
                             continue;
                         }
                         $image = new ODATAImage();
@@ -617,7 +634,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                     case 'ezobjectrelation':
                         if ( ! $attribute->hasContent() )
                         {
-                            $object->{$key} = NULL;
+                            $object->{$key} = new ContentObject();
                             continue;
                         }
                         $co = $attribute->content();
@@ -630,13 +647,24 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                         $object->{$key} = $value;
                         break;
                     case 'xrowgis':
-                        $object->{$key} = $attribute->toString();
+                    	#$object->{$key} = $attribute->toString();
+                    	$value = new ODataGIS();
+                    	$value->country = 'asdasdasd';
+                    	$object->{$key} = $value;
+                        #$object->{$key} = $value;
+                    	#$gis->latitude = (Double)1;
+                    	#$gis->longitude = (Double)2;
+                    	#$gis->zip = '2';
+                    	#$gis->street = '2';
+                    	#$gis->city = '5';
+                    	#$gis->state = '4';
+
                         break;
                     case 'xrowmetadata':
                         $xmlString = $attribute->attribute( 'data_text' );
                         $doc = new DOMDocument( '1.0', 'utf-8' );
                         $doc->loadXML( $xmlString );
-                        $object->{$key} = $doc;
+                        $object->{$key} = new ODataMetaData();
                         break;
                     
                     case 'ezxmltext':
@@ -656,7 +684,33 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                         }
                         $object->{$key} = $doc->saveXML();
                         break;
+                    case 'ezstring':
+                    case 'ezemail':
+                    case 'ezidentifier':
+                    case 'ezcountry':
+                    case 'ezisbn':
+                    case 'eztext':
+                    case 'ezurl':
+                    case 'ezpage':
+                    case 'ezselection':
+                    case 'ezkeyword':
+                    case 'eztext':
                     
+                    	
+                        $object->{$key} = $attribute->toString();
+                        break;
+                    case 'ezfloat':
+                    case 'ezprice':
+                    	$object->{$key} = (double)$attribute->toString();
+                        break;
+                    case 'ezinteger':
+                        $object->{$key} = (int)$attribute->toString();
+                        break;
+                    case 'ezdate':
+                    case 'ezdatetime':
+                    case 'time':
+                        $object->{$key} = (int)$attribute->toString();
+                        break;
                     default:
                         $object->{$key} = $attribute->toString();
                         break;
@@ -667,6 +721,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                 }
             }
         }
+
         $GLOBALS['ODATARecursionCounter'] --;
         return $object;
     }
@@ -713,7 +768,6 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             }
             elseif ( $nodeID )
             {
-                
                 $nodeData = eZContentObjectTreeNode::fetch( $nodeID );
                 $node->removeAttribute( 'node_id' );
                 if ( $nodeData instanceof eZContentObjectTreeNode )
