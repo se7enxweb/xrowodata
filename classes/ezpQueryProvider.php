@@ -496,8 +496,13 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         $object->ParentName = $parent->attribute( 'name' );
         $object->URLAlias = $node->attribute( 'url_alias' );
         $object->ClassIdentifier = $node->attribute( 'class_identifier' );
-        $object->content_published = $co->attribute( 'published' );
-        $object->content_modified = $co->attribute( 'modified' );
+
+        $date = new DateTime( '@'.$co->attribute( 'published' ) );
+        $date->setTimezone( new DateTimeZone( date_default_timezone_get() ) );
+        $object->content_published = $date->format(DateTime::W3C);
+        $date = new DateTime( '@'.$co->attribute( 'modified' ) );
+        $date->setTimezone( new DateTimeZone( date_default_timezone_get() ) );
+        $object->content_modified = $date->format(DateTime::W3C);
         $dm = $node->attribute( 'data_map' );
         $testArray = $GLOBALS['ODATACLASSMATRIX'][$node->attribute( 'class_identifier' )];
 
@@ -720,7 +725,15 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                     case 'ezdate':
                     case 'ezdatetime':
                     case 'time':
-                        $object->{$key} = (int)$attribute->toString();
+                        if ( ! $attribute->hasContent() )
+                        {
+                            $object->{$key} = new ODataMetaData();
+                            continue;
+                        }
+
+                    	$date = new DateTime( '@'.$attribute->content() );
+                    	$date->setTimezone( new DateTimeZone( date_default_timezone_get() ) );
+                        $object->{$key} = $date->format(DateTime::W3C);
                         break;
                     default:
                         $object->{$key} = $attribute->toString();
