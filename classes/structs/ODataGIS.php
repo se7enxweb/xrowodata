@@ -8,5 +8,6 @@ class ODataGIS
     public $street;
     public $city;
     public $state;
+    public $district;
     public $country;
 }

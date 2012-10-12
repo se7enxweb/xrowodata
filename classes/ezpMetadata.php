@@ -70,12 +70,12 @@ class ezpMetadata
         }
         
         $xrowgisComplexType = $metadata->addComplexType( new ReflectionClass( 'ODataGIS' ), 'ODataGIS', 'eZPublish', null );
-        #$metadata->addPrimitiveProperty( $xrowgisComplexType, 'latitude', EdmPrimitiveType::DOUBLE );
-        #$metadata->addPrimitiveProperty( $xrowgisComplexType, 'longitude', EdmPrimitiveType::DOUBLE );
-        #$metadata->addPrimitiveProperty( $xrowgisComplexType, 'street', EdmPrimitiveType::STRING );
-        #$metadata->addPrimitiveProperty( $xrowgisComplexType, 'zip', EdmPrimitiveType::STRING );
-        #$metadata->addPrimitiveProperty( $xrowgisComplexType, 'city', EdmPrimitiveType::STRING );
-        #$metadata->addPrimitiveProperty( $xrowgisComplexType, 'state', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'latitude', EdmPrimitiveType::DOUBLE );
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'longitude', EdmPrimitiveType::DOUBLE );
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'street', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'zip', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'city', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'state', EdmPrimitiveType::STRING );
         $metadata->addPrimitiveProperty( $xrowgisComplexType, 'country', EdmPrimitiveType::STRING );
         
         $ezcontentobjectComplexType = $metadata->addComplexType( new ReflectionClass( 'ContentObject' ), 'ContentObject', 'eZPublish', null );
@@ -184,7 +184,6 @@ class ezpMetadata
                         $metadata->addComplexProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), $ezauthorrelationComplexType );
                         break;
                     case 'xrowgis':
-                    	#$metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), EdmPrimitiveType::STRING );
                         $metadata->addComplexProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], $attribute->attribute( 'identifier' ), $xrowgisComplexType );
                         break;
                     case 'xrowmetadata':

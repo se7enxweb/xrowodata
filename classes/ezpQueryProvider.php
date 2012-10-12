@@ -647,24 +647,35 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                         $object->{$key} = $value;
                         break;
                     case 'xrowgis':
-                    	#$object->{$key} = $attribute->toString();
+                        if ( ! $attribute->hasContent() )
+                        {
+                            $object->{$key} = new ContentObject();
+                            continue;
+                        }
+                        $content = $attribute->content();
                     	$value = new ODataGIS();
-                    	$value->country = 'asdasdasd';
+                    	$value->latitude = (Double)$content->latitude;
+                    	$value->longitude = (Double)$content->longitude;
+                    	$value->zip = $content->zip;
+                    	$value->street = $content->street;
+                    	$value->district = $content->district;
+                    	$value->city = $content->city;
+                    	$value->state = $content->state;
+                    	$value->country = $content->country;
                     	$object->{$key} = $value;
-                        #$object->{$key} = $value;
-                    	#$gis->latitude = (Double)1;
-                    	#$gis->longitude = (Double)2;
-                    	#$gis->zip = '2';
-                    	#$gis->street = '2';
-                    	#$gis->city = '5';
-                    	#$gis->state = '4';
-
                         break;
                     case 'xrowmetadata':
-                        $xmlString = $attribute->attribute( 'data_text' );
-                        $doc = new DOMDocument( '1.0', 'utf-8' );
-                        $doc->loadXML( $xmlString );
-                        $object->{$key} = new ODataMetaData();
+                        if ( ! $attribute->hasContent() )
+                        {
+                            $object->{$key} = new ODataMetaData();
+                            continue;
+                        }
+                        $content = $attribute->content();
+                        $value = new ODataMetaData();
+                        $value->title = $content->title;
+                        $value->keywords = $content->keywords;
+                        $value->description = $content->description;
+                        $object->{$key} = $value;
                         break;
                     
                     case 'ezxmltext':
