@@ -527,7 +527,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                     case 'ezimage':
                         if ( ! $attribute->hasContent() )
                         {
-                            $object->{$key} = false;
+                            $object->{$key} = new ODATAImage();
                             continue;
                         }
                         $image = new ODATAImage();
@@ -654,7 +654,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                     case 'xrowgis':
                         if ( ! $attribute->hasContent() )
                         {
-                            $object->{$key} = new ContentObject();
+                            $object->{$key} = new ODataGIS();
                             continue;
                         }
                         $content = $attribute->content();
@@ -727,11 +727,10 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                     case 'time':
                         if ( ! $attribute->hasContent() )
                         {
-                            $object->{$key} = new ODataMetaData();
+                            $object->{$key} = null;
                             continue;
                         }
-
-                    	$date = new DateTime( '@'.$attribute->content() );
+                    	$date = new DateTime( '@'.$attribute->attribute( 'data_int') );
                     	$date->setTimezone( new DateTimeZone( date_default_timezone_get() ) );
                         $object->{$key} = $date->format(DateTime::W3C);
                         break;
