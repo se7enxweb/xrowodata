@@ -16,7 +16,7 @@ class odataViewHandler implements ezcMvcViewHandler
     protected $zoneName;
     protected $result;
     protected $variables = array();
-
+    const BASE_SERVICE_URI = '/api/odata/v1/ezpublish.svc';
     public function __construct( $zoneName = "odata", $templateLocation = null )
     {
         $this->zoneName = $zoneName;
@@ -74,9 +74,8 @@ class odataViewHandler implements ezcMvcViewHandler
         
         try
         {
-            
             $this->_dataServiceHost = new DataServiceHost();
-            $this->_dataServiceHost->setAbsoluteServiceUri( "http://" . eZSys::hostname() . "/api/odata/v1/ezpublish.svc/" );
+            $this->_dataServiceHost->setAbsoluteServiceUri( eZSys::serverURL() . self::BASE_SERVICE_URI );
             
             $reflectionClass = new \ReflectionClass( 'ezpDataService' );
             $dataService = $reflectionClass->newInstance();
