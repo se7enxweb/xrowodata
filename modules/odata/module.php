@@ -2,20 +2,14 @@
 $Module = array( 'name' => 'xrow OData' );
 
 $ViewList = array();
-
-$ViewList['view'] = array(
-                   'functions' => array( 'read' ),
-                   'script' => 'view.php',
-                   'params' => array( ),
-                   );
 $ViewList['redirect'] = array(
                    'functions' => array( 'read' ),
                    'script' => 'redirect.php',
-                   'params' => array( ),
+                   'params' => array( ),U
                    );
 
 $FunctionList = array();
 
+//Users able to use the API
 $FunctionList['read'] = array( );
-
-?>
+$FunctionList['write'] = array( );
