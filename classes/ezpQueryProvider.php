@@ -36,7 +36,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
     {
         if ( is_null( $this->ExpressionProvider ) )
         {
-            $this->ExpressionProvider = new WordPressDSExpressionProvider();
+            $this->ExpressionProvider = new ezpExpressionProvider();
         }
         
         return $this->ExpressionProvider;
@@ -50,18 +50,22 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         eZDebug::writeDebug( "Enter", __METHOD__ . '()' );
         if ( $select !== null )
         {
-            throw new Exception( '(' . __METHOD__ . ') Select not supported ' ) ;
+            throw new Exception( '(' . __METHOD__ . ') Select not supported ' );
         }
+        
         $resourceSetName = $resourceSet->getName();
-        /* @var $class eZContentClass */
-        $class = eZContentClass::fetchByIdentifier( $resourceSetName );
-
-        if ( ! in_array( $resourceSetName, $this->special_resources ) and $class === null )
+        
+        foreach ( xrowODataUtils::plugins() as $plugin )
         {
-            throw new Exception( '(' . __METHOD__ . ') Unknown resource set ' . $resourceSetName ) ;
+            if ( class_exists( $plugin ) and $plugin::NAME === $resourceSetName )
+            {
+                return $plugin::getResourceSet( $resourceSet, $filter, $select, $orderby, $top, $skiptoken );
+            }
         }
         
         $returnResult = array();
+        /* @var $class eZContentClass */
+        $class = eZContentClass::fetchByIdentifier( $resourceSetName );
         if ( $class )
         {
             $params = array( 
@@ -70,23 +74,23 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                     $class->attribute( 'identifier' ) 
                 ) 
             );
+            self::addFieldFilter( $params, $filter, $class );
             self::ezpOrderByQueryPart( $params, $orderby );
             self::addLimitOffset( $params, $top, $skiptoken );
-
             self::addParams( $params );
             if ( empty( $params['SortBy'] ) )
             {
                 $node = eZContentObjectTreeNode::fetch( 2 );
                 $params['SortBy'] = $node->sortArray();
             }
-            $GLOBALS['_odata_server_count'] = eZContentObjectTreeNode::subTreeCountByNodeID( $params, 2 );
-            $list = eZContentObjectTreeNode::subTreeByNodeID( $params, 2 );
-
+            $GLOBALS['_odata_server_count'] = eZContentObjectTreeNode::subTreeCountByNodeID( $params, $params['ParentNodeID'] );
+            $list = eZContentObjectTreeNode::subTreeByNodeID( $params, $params['ParentNodeID'] );
+            
             $returnResult = $this->_serializeContentObjectTreeNodes( $list );
-
+            
             return $returnResult;
         }
-        return $returnResult;
+        throw new Exception( '(' . __METHOD__ . ') Unknown resource set ' . $resourceSetName );
     }
 
     /**
@@ -105,7 +109,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         }
         
         $namedKeyValues = $keyDescriptor->getValidatedNamedValues();
-
+        
         if ( isset( $namedKeyValues['NodeID'][0] ) and $node = eZContentObjectTreeNode::fetch( (int) $namedKeyValues['NodeID'][0] ) )
         {
             if ( $node instanceof eZContentObjectTreeNode )
@@ -144,7 +148,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             {
                 $GLOBALS['EZ_ODATA_CACHE_TIME'] = (int) $ini->variable( 'AfterModificationCacheTTL-' . $class->Identifier, 'DefaultCacheTTL' );
             }
-
+            
             return $returnResult;
         }
         
@@ -184,6 +188,52 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         {
             $params['Depth'] = false;
             $params['DepthOperator'] = false;
+        }
+    }
+
+    static function addFieldFilter( &$params, $filters, $class )
+    {
+        $attribute_filter = array();
+        foreach ( $filters as $filter )
+        {
+            if ( $filter[0] === 'ParentNodeID' and $filter[1] === ezpExpressionProvider::EQUAL )
+            {
+                $params['ParentNodeIDFilter'][] = $filter[2];
+                continue;
+            }
+            elseif ( $filter[0] === 'ParentNodeID' )
+            {
+                throw new Exception( 'Field ParentNodeID will only support eq operator.' );
+            }
+            if ( $class->fetchAttributeByIdentifier( $filter[0] ) )
+            {
+                $filter[0] = $class->attribute( 'identifier' ) . '/' . $filter[0];
+            }
+            elseif ( $filter[0] === 'ContentObjectName' )
+            {
+                $filter[0] = 'name';
+            }
+            elseif ( $filter[0] === 'ClassIdentifier' )
+            {
+                $filter[0] = 'class_name';
+            }
+            elseif ( $filter[0] === 'content_published' )
+            {
+                $filter[0] = 'published';
+            }
+            elseif ( $filter[0] === 'content_modified' )
+            {
+                $filter[0] = 'modified';
+            }
+            $attribute_filter[] = $filter;
+        }
+        if ( count( $attribute_filter ) > 0 )
+        {
+            $params['AttributeFilter'] = $attribute_filter;
+        }
+        if ( ! isset( $params['ParentNodeID'] ) )
+        {
+            $params['ParentNodeID'] = 2;
         }
     }
 
@@ -444,24 +494,29 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
     {
         $GLOBALS['ODATARecursionCounter'] = 0;
         $result = array();
-        
-        foreach ( $list as $item )
+        if ( count( $list ) > 0 )
         {
-            if ( $item instanceof eZContentObjectTreeNode )
+            foreach ( $list as $item )
             {
-            	try {
-            		$result[] = $this->_serializeContentObjectTreeNode( $item );
-            	} catch (Exception $e) {
-            		eZDebug::writeError( $e->getMessage(), __METHOD__ );
-            	}
+                if ( $item instanceof eZContentObjectTreeNode )
+                {
+                    try
+                    {
+                        $result[] = $this->_serializeContentObjectTreeNode( $item );
+                    }
+                    catch ( Exception $e )
+                    {
+                        eZDebug::writeError( $e->getMessage(), __METHOD__ );
+                    }
                 
-            }
-            else
-            {
-                eZDebug::writeError( array( 
-                    'item is not an instance of eZContentObjectTreeNode' , 
-                    $item 
-                ), __METHOD__ );
+                }
+                else
+                {
+                    eZDebug::writeError( array( 
+                        'item is not an instance of eZContentObjectTreeNode' , 
+                        $item 
+                    ), __METHOD__ );
+                }
             }
         }
         return $result;
@@ -496,30 +551,30 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         $object->ParentName = $parent->attribute( 'name' );
         $object->URLAlias = $node->attribute( 'url_alias' );
         $object->ClassIdentifier = $node->attribute( 'class_identifier' );
-
-        $date = new DateTime( '@'.$co->attribute( 'published' ) );
+        
+        $date = new DateTime( '@' . $co->attribute( 'published' ) );
         $date->setTimezone( new DateTimeZone( date_default_timezone_get() ) );
-        $object->content_published = $date->format(DateTime::W3C);
-        $date = new DateTime( '@'.$co->attribute( 'modified' ) );
+        $object->content_published = $date->format( DateTime::W3C );
+        $date = new DateTime( '@' . $co->attribute( 'modified' ) );
         $date->setTimezone( new DateTimeZone( date_default_timezone_get() ) );
-        $object->content_modified = $date->format(DateTime::W3C);
+        $object->content_modified = $date->format( DateTime::W3C );
         $dm = $node->attribute( 'data_map' );
         $testArray = $GLOBALS['ODATACLASSMATRIX'][$node->attribute( 'class_identifier' )];
-
-        if (count( array_diff(array_keys($dm), array_keys($testArray) ) ) > 0 )
+        
+        if ( count( array_diff( array_keys( $dm ), array_keys( $testArray ) ) ) > 0 )
         {
-        	throw new Exception( 'Content attributes do not match contentclass attributes of object #' . $node->ContentObjectID . ' wiht class ' . $node->attribute( 'class_identifier' ));
+            throw new Exception( 'Content attributes do not match contentclass attributes of object #' . $node->ContentObjectID . ' wiht class ' . $node->attribute( 'class_identifier' ) );
         }
         
         /* @var $attribute eZContentObjectAttribute */
         foreach ( $dm as $key => $attribute )
         {
-        	unset($testArray[$attribute->contentClassAttributeIdentifier()]);
-        	if ( in_array( $attribute->DataTypeString, xrowODataUtils::unsupportedDatatypes() ) )
-        	{
-        		continue;
-        	}
-
+            unset( $testArray[$attribute->contentClassAttributeIdentifier()] );
+            if ( in_array( $attribute->DataTypeString, xrowODataUtils::unsupportedDatatypes() ) )
+            {
+                continue;
+            }
+            
             if ( $attribute )
             {
                 switch ( $attribute->DataTypeString )
@@ -658,16 +713,16 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                             continue;
                         }
                         $content = $attribute->content();
-                    	$value = new ODataGIS();
-                    	$value->latitude = (Double)$content->latitude;
-                    	$value->longitude = (Double)$content->longitude;
-                    	$value->zip = $content->zip;
-                    	$value->street = $content->street;
-                    	$value->district = $content->district;
-                    	$value->city = $content->city;
-                    	$value->state = $content->state;
-                    	$value->country = $content->country;
-                    	$object->{$key} = $value;
+                        $value = new ODataGIS();
+                        $value->latitude = (double) $content->latitude;
+                        $value->longitude = (double) $content->longitude;
+                        $value->zip = $content->zip;
+                        $value->street = $content->street;
+                        $value->district = $content->district;
+                        $value->city = $content->city;
+                        $value->state = $content->state;
+                        $value->country = $content->country;
+                        $object->{$key} = $value;
                         break;
                     case 'xrowmetadata':
                         if ( ! $attribute->hasContent() )
@@ -711,16 +766,15 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                     case 'ezselection':
                     case 'ezkeyword':
                     case 'eztext':
-                    
-                    	
+                        
                         $object->{$key} = $attribute->toString();
                         break;
                     case 'ezfloat':
                     case 'ezprice':
-                    	$object->{$key} = (double)$attribute->toString();
+                        $object->{$key} = (double) $attribute->toString();
                         break;
                     case 'ezinteger':
-                        $object->{$key} = (int)$attribute->toString();
+                        $object->{$key} = (int) $attribute->toString();
                         break;
                     case 'ezdate':
                     case 'ezdatetime':
@@ -730,9 +784,9 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                             $object->{$key} = null;
                             continue;
                         }
-                    	$date = new DateTime( '@'.$attribute->attribute( 'data_int') );
-                    	$date->setTimezone( new DateTimeZone( date_default_timezone_get() ) );
-                        $object->{$key} = $date->format(DateTime::W3C);
+                        $date = new DateTime( '@' . $attribute->attribute( 'data_int' ) );
+                        $date->setTimezone( new DateTimeZone( date_default_timezone_get() ) );
+                        $object->{$key} = $date->format( DateTime::W3C );
                         break;
                     default:
                         $object->{$key} = $attribute->toString();
@@ -744,7 +798,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                 }
             }
         }
-
+        
         $GLOBALS['ODATARecursionCounter'] --;
         return $object;
     }

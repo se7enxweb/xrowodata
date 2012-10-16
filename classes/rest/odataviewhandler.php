@@ -108,7 +108,7 @@ class odataViewHandler implements ezcMvcViewHandler
                 $this->result .= htmlentities( $dataService->getHost()->getWebOperationContext()->outgoingResponse()->getStream() );
                 $this->result .= "</pre>\n";
                 $debug = ezpRestDebug::getInstance();
-          		$this->result .= $debug->getDebug();
+          		$this->result .= "<pre>" . print_r( $debug->getReport(), true ) . "</pre>";
                 $this->result .= "</body></html>\n";
             }
             else

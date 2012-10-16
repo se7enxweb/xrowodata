@@ -130,6 +130,10 @@ class ezpMetadata
             $classstr .= 'public $content_published = 0;';
             $classstr .= 'public $content_modified = 0;';
             $classstr .= 'public $Guid = "";';
+            /*
+             * All Attributes that are availbale for filtering.
+class_identifier,class_name,depth,modified,modified_subnode,name,owner,path,priority,published,section,state
+             * */
             
             foreach ( $class->fetchAttributes() as $attribute )
             {
@@ -159,16 +163,16 @@ class ezpMetadata
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'ClassIdentifier', EdmPrimitiveType::STRING );
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'content_published', EdmPrimitiveType::DATETIME );
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'content_modified', EdmPrimitiveType::DATETIME );
-
+            
             foreach ( $class->fetchAttributes() as $attribute )
             {
-            	$GLOBALS['ODATACLASSMATRIX'][$class->attribute( 'identifier' )][$attribute->attribute( 'identifier' )] = $attribute->attribute( 'identifier' );
-
+                $GLOBALS['ODATACLASSMATRIX'][$class->attribute( 'identifier' )][$attribute->attribute( 'identifier' )] = $attribute->attribute( 'identifier' );
+                
                 if ( in_array( $attribute->DataTypeString, xrowODataUtils::unsupportedDatatypes() ) )
                 {
                     continue;
                 }
-
+                
                 switch ( $attribute->DataTypeString )
                 {
                     case 'ezstring':
@@ -273,6 +277,13 @@ class ezpMetadata
             $metadata->addResourceSetReferenceProperty( $LatestNodesByListEntityType, self::REFSET_IDENTIFIER . $classname, $metaclasses[$classname]['ResourceSet'] );
         }
         
+        foreach ( xrowODataUtils::plugins() as $plugin )
+        {
+            if ( class_exists( $plugin ) )
+            {
+                $plugin::metadata( $metadata );
+            }
+        }
         return $metadata;
     }
 }

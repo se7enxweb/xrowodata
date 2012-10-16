@@ -4,6 +4,8 @@
 #EntitySetPageSize=10
 #AvailableClassList[]=folder
 #
+#PluginList[]
+#PluginList[]=xrowODataCity
 # List of excludes for redirector
 #MobileExcludeList[]
 #

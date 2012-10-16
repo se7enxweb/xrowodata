@@ -19,6 +19,19 @@ class xrowODataUtils
         }
         return $return;
     }
+    static public function plugins()
+    {
+        $return = array();
+        $ini = eZINI::instance( "odata.ini" );
+        if ( $ini->hasVariable( 'Settings', 'PluginList' ) )
+        {
+            foreach ( $ini->variable( 'Settings', 'PluginList' ) as $alias )
+            {
+                $return[] = $alias;
+            }
+        }
+        return $return;
+    }
     static public function unsupportedDatatypes()
     {
         $return = array();
