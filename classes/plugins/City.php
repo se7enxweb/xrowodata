@@ -21,14 +21,21 @@ class xrowODataCity extends xrowODataPlugin
     {
         $return = array();
         $params = array();
-
+        
         ezpQueryProvider::addLimitOffset( $params, $top, $skiptoken );
         $node = eZContentObjectTreeNode::fetch( 363959 );
-
+        
         foreach ( xrowGISTools::citiesBySubtree( $node, $params ) as $city )
         {
             $ODatacity = new xrowODataCity();
-            $ODatacity->Name = $city;
+            if ( is_array( $city ) )
+            {
+                $ODatacity->Name = $city['city'];
+            }
+            else
+            {
+                $ODatacity->Name = $city;
+            }
             $return[] = $ODatacity;
         }
         return $return;
