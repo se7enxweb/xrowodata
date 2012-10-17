@@ -37,17 +37,6 @@ class ezpExpressionProvider implements IExpressionProvider
      * @var ResourceType
      */
     private $_resourceType;
-    
-    private $_entityMapping;
-
-    /**
-     * Constructs new instance of MySQLExpressionProvider
-     * 
-     */
-    public function __construct()
-    {
-        $this->_entityMapping = CreateWordPressMetadata::getEntityMapping();
-    }
 
     /**
      * Get the name of the iterator
@@ -249,16 +238,6 @@ class ezpExpressionProvider implements IExpressionProvider
         $variable = null;
         $entityTypeName = $this->_resourceType->getName();
         $propertyName = $parent->getResourceProperty()->getName();
-        if ( is_array( $this->_entityMapping ) )
-        {
-            if ( array_key_exists( $entityTypeName, $this->_entityMapping ) )
-            {
-                if ( array_key_exists( $propertyName, $this->_entityMapping[$entityTypeName] ) )
-                {
-                    return $this->_entityMapping[$entityTypeName][$propertyName];
-                }
-            }
-        }
         
         return $propertyName;
     }
