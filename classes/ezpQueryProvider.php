@@ -5,6 +5,7 @@ use ODataProducer\UriProcessor\ResourcePathProcessor\SegmentParser\KeyDescriptor
 use ODataProducer\Providers\Metadata\ResourceSet;
 use ODataProducer\Providers\Metadata\ResourceProperty;
 use ODataProducer\Providers\Query\IDataServiceQueryProvider2;
+use ODataProducer\UriProcessor\QueryProcessor\OrderByParser\InternalOrderByInfo;
 
 class ezpQueryProvider implements IDataServiceQueryProvider2
 {
@@ -204,6 +205,14 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             elseif ( $filter[0] === 'ParentNodeID' )
             {
                 throw new Exception( 'Field ParentNodeID will only support eq operator.' );
+            }
+            if ( $filter[0] == 'city' )
+            {
+                $params['ExtendedAttributeFilter'] = array( 
+                    'id' => 'xrowgis_extendedfilter' , 
+                    'params' => array( array( 'city', 'city' => $filter[2] ) ) 
+                );
+                continue;
             }
             if ( $class->fetchAttributeByIdentifier( $filter[0] ) )
             {
