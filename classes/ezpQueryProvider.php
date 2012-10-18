@@ -86,9 +86,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             }
             $GLOBALS['_odata_server_count'] = eZContentObjectTreeNode::subTreeCountByNodeID( $params, $params['ParentNodeID'] );
             $list = eZContentObjectTreeNode::subTreeByNodeID( $params, $params['ParentNodeID'] );
-            
             $returnResult = $this->_serializeContentObjectTreeNodes( $list );
-            
             return $returnResult;
         }
         throw new Exception( '(' . __METHOD__ . ') Unknown resource set ' . $resourceSetName );
@@ -206,11 +204,11 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             {
                 throw new Exception( 'Field ParentNodeID will only support eq operator.' );
             }
-            if ( $filter[0] == 'city' )
+            if ( $filter[0] === 'city' )
             {
                 $params['ExtendedAttributeFilter'] = array( 
                     'id' => 'xrowgis_extendedfilter' , 
-                    'params' => array( array( 'city', 'city' => $filter[2] ) ) 
+                    'params' => array( array( 'xrowGISExtendedAttributeFilter::city', 'city' => $filter[2] ) ) 
                 );
                 continue;
             }
@@ -285,6 +283,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             $params['Depth'] = false;
             $params['DepthOperator'] = false;
         }
+        $params['MainNodeOnly'] = true;
     }
 
     static function ezpOrderByQueryPart( &$params, InternalOrderByInfo $orderby )
@@ -457,48 +456,6 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
      * 
      * @return array(Object)
      */
-    private function _serializeContentObjects( $result )
-    {
-        $cats = array();
-        while ( $record = mysql_fetch_array( $result, MYSQL_ASSOC ) )
-        {
-            $cats[] = $this->_serializeContentObject( $record );
-        }
-        
-        return $cats;
-    }
-
-    /**
-     * Serialize the mysql row into Category object
-     * 
-     * @param array $record each category row
-     * 
-     * @return Object
-     */
-    private function _serializeContentObject( $record )
-    {
-        $cat = new ContentObject();
-        $cat->ContentObjectID = $record['id'];
-        $cat->Name = $record['name'];
-        if ( ! is_null( $record['published'] ) )
-        {
-            $dateTime = new DateTime( '@' . $record['published'] );
-            $post->Date = $dateTime->format( 'Y-m-d\TH:i:s' );
-        }
-        else
-        {
-            $post->Date = null;
-        }
-        return $cat;
-    }
-
-    /**
-     * Serialize the mysql result array into Category objects
-     * 
-     * @param array(array) $result result of the mysql query
-     * 
-     * @return array(Object)
-     */
     private function _serializeContentObjectTreeNodes( $list = array() )
     {
         $GLOBALS['ODATARecursionCounter'] = 0;
@@ -551,9 +508,9 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         {
             $object = new $ClassSpecial();
         }
-        $object->NodeID = $node->NodeID;
-        $object->MainNodeID = $node->MainNodeID;
-        $object->ContentObjectID = $node->ContentObjectID;
+        $object->NodeID = (int)$node->NodeID;
+        $object->MainNodeID = (int)$node->MainNodeID;
+        //$object->ContentObjectID = (int)$node->ContentObjectID;
         $object->ContentObjectName = $node->attribute( 'name' );
         $parent = $node->attribute( 'parent' );
         $object->ParentNodeID = $parent->NodeID;
@@ -569,21 +526,26 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         $object->content_modified = $date->format( DateTime::W3C );
         $dm = $node->attribute( 'data_map' );
         $testArray = $GLOBALS['ODATACLASSMATRIX'][$node->attribute( 'class_identifier' )];
-        
+
         if ( count( array_diff( array_keys( $dm ), array_keys( $testArray ) ) ) > 0 )
         {
             throw new Exception( 'Content attributes do not match contentclass attributes of object #' . $node->ContentObjectID . ' wiht class ' . $node->attribute( 'class_identifier' ) );
+        }
+        if ( empty( $dm ) )
+        {
+            throw new Exception( 'Data map empty of object #' . $node->ContentObjectID . ' wiht class ' . $node->attribute( 'class_identifier' ) );
         }
         
         /* @var $attribute eZContentObjectAttribute */
         foreach ( $dm as $key => $attribute )
         {
+            $object->{$key} = null;
             unset( $testArray[$attribute->contentClassAttributeIdentifier()] );
             if ( in_array( $attribute->DataTypeString, xrowODataUtils::unsupportedDatatypes() ) )
             {
                 continue;
             }
-            
+
             if ( $attribute )
             {
                 switch ( $attribute->DataTypeString )
@@ -801,13 +763,8 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                         $object->{$key} = $attribute->toString();
                         break;
                 }
-                if ( $object->{$key} === null )
-                {
-                    $object->{$key} = '';
-                }
             }
         }
-        
         $GLOBALS['ODATARecursionCounter'] --;
         return $object;
     }

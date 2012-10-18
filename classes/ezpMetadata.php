@@ -79,10 +79,10 @@ class ezpMetadata
         $metadata->addPrimitiveProperty( $xrowgisComplexType, 'country', EdmPrimitiveType::STRING );
         
         $ezcontentobjectComplexType = $metadata->addComplexType( new ReflectionClass( 'ContentObject' ), 'ContentObject', 'eZPublish', null );
-        $metadata->addPrimitiveProperty( $ezcontentobjectComplexType, 'ContentObjectID', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $ezcontentobjectComplexType, 'ContentObjectID', EdmPrimitiveType::INT32 );
         $metadata->addPrimitiveProperty( $ezcontentobjectComplexType, 'Name', EdmPrimitiveType::STRING );
         $metadata->addPrimitiveProperty( $ezcontentobjectComplexType, 'Guid', EdmPrimitiveType::STRING );
-        $metadata->addPrimitiveProperty( $ezcontentobjectComplexType, 'MainNodeID', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $ezcontentobjectComplexType, 'MainNodeID', EdmPrimitiveType::INT32 );
         $metadata->addPrimitiveProperty( $ezcontentobjectComplexType, 'ClassIdentifier', EdmPrimitiveType::STRING );
         
         $xrowmetadataComplexType = $metadata->addComplexType( new ReflectionClass( 'ODataMetaData' ), 'ODataMetaData', 'eZPublish', null );

@@ -17,6 +17,7 @@ class odataViewHandler implements ezcMvcViewHandler
     protected $result;
     protected $variables = array();
     const BASE_SERVICE_URI = '/api/odata/v1/ezpublish.svc';
+
     public function __construct( $zoneName = "odata", $templateLocation = null )
     {
         $this->zoneName = $zoneName;
@@ -108,7 +109,8 @@ class odataViewHandler implements ezcMvcViewHandler
                 $this->result .= htmlentities( $dataService->getHost()->getWebOperationContext()->outgoingResponse()->getStream() );
                 $this->result .= "</pre>\n";
                 $debug = ezpRestDebug::getInstance();
-          		$this->result .= "<pre>" . print_r( $debug->getReport(), true ) . "</pre>";
+                $list = $debug->getReport();
+                $this->result .= "<pre>" . join( "\n", $list['eZDebug'] ) . "</pre>";
                 $this->result .= "</body></html>\n";
             }
             else
