@@ -130,6 +130,7 @@ class ezpMetadata
             $classstr .= 'public $ParentNodeID;';
             $classstr .= 'public $ParentName;';
             $classstr .= 'public $URLAlias;';
+            $classstr .= 'public $Depth;';
             $classstr .= 'public $ClassIdentifier;';
             $classstr .= 'public $content_published = 0;';
             $classstr .= 'public $content_modified = 0;';
@@ -158,6 +159,7 @@ class_identifier,class_name,depth,modified,modified_subnode,name,owner,path,prio
             $metadata->addKeyProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'NodeID', EdmPrimitiveType::INT32 );
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'MainNodeID', EdmPrimitiveType::INT32 );
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'ContentObjectID', EdmPrimitiveType::INT32 );
+            $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'Depth', EdmPrimitiveType::INT32 );
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'ParentNodeID', EdmPrimitiveType::INT32 );
             $metadata->addPrimitiveProperty( $metaclasses[$class->attribute( 'identifier' )]['Type'], 'Guid', EdmPrimitiveType::GUID );
             

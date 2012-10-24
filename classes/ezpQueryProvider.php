@@ -317,7 +317,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         }
         if( isset( $params['ParentNodeIDFilter'] ) )
         {
-            $params['ParentNodeID'] = $params['ParentNodeIDFilter'];
+        	$params['ParentNodeID'] = $params['ParentNodeIDFilter'];
         }
         else if ( ! isset( $params['ParentNodeID'] ) )
         {
@@ -327,9 +327,9 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
 
     static function addLimitOffset( &$params, $top, $skip )
     {
-        if ( isset( $top ) and (int) $top <= 100 )
+        if ( isset( $_GET['$top'] ) and (int) $_GET['$top'] > 0 and (int) $_GET['$top'] <= 100 )
         {
-            $params['Limit'] = (int) $top;
+            $params['Limit'] = (int) $_GET['$top'];
         }
         else
         {
@@ -574,7 +574,8 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         $object->ParentName = $parent->attribute( 'name' );
         $object->URLAlias = $node->attribute( 'url_alias' );
         $object->ClassIdentifier = $node->attribute( 'class_identifier' );
-        
+        $object->Depth = $node->Depth;
+
         $date = new DateTime( '@' . $co->attribute( 'published' ) );
         $date->setTimezone( new DateTimeZone( date_default_timezone_get() ) );
         $object->content_published = $date->format( DateTime::W3C );
