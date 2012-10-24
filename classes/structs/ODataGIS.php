@@ -10,4 +10,8 @@ class ODataGIS
     public $state;
     public $district;
     public $country;
+    public $ReferenceName;
+    public $ReferenceMainNodeID;
+    public $ReferenceClassIdentifier;
+    public $ReferenceURI;
 }

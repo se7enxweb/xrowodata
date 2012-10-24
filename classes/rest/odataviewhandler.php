@@ -67,6 +67,10 @@ class odataViewHandler implements ezcMvcViewHandler
     {
         self::eZUpdateDebugSettings();
         eZDebug::setHandleType( eZDebug::HANDLE_FROM_PHP );
+        
+        //Make sure we always output floats with a "."
+        setlocale(LC_NUMERIC, "C");
+        
         set_include_path( get_include_path() . PATH_SEPARATOR . './extension/xrowodata/src/ODataProducer/library' );
         
         require_once 'ODataProducer' . DIRECTORY_SEPARATOR . 'Common' . DIRECTORY_SEPARATOR . 'ClassAutoLoader.php';

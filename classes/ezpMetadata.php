@@ -77,7 +77,11 @@ class ezpMetadata
         $metadata->addPrimitiveProperty( $xrowgisComplexType, 'city', EdmPrimitiveType::STRING );
         $metadata->addPrimitiveProperty( $xrowgisComplexType, 'state', EdmPrimitiveType::STRING );
         $metadata->addPrimitiveProperty( $xrowgisComplexType, 'country', EdmPrimitiveType::STRING );
-        
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'ReferenceName', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'ReferenceMainNodeID', EdmPrimitiveType::INT32 );
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'ReferenceClassIdentifier', EdmPrimitiveType::STRING );
+        $metadata->addPrimitiveProperty( $xrowgisComplexType, 'ReferenceURI', EdmPrimitiveType::STRING );
+
         $ezcontentobjectComplexType = $metadata->addComplexType( new ReflectionClass( 'ContentObject' ), 'ContentObject', 'eZPublish', null );
         $metadata->addPrimitiveProperty( $ezcontentobjectComplexType, 'ContentObjectID', EdmPrimitiveType::INT32 );
         $metadata->addPrimitiveProperty( $ezcontentobjectComplexType, 'Name', EdmPrimitiveType::STRING );
@@ -238,43 +242,6 @@ class_identifier,class_name,depth,modified,modified_subnode,name,owner,path,prio
             {
                 $metadata->addResourceSetReferenceProperty( $metaclasses[$classname]['Type'], self::REFSET_IDENTIFIER . $classname2, $metaclasses[$classname2]['ResourceSet'] );
             }
-        }
-        $classstr = "class " . 'LatestNodes' . " { ";
-        $classstr .= 'public $NodeID;';
-        $classstr .= 'public $MainNodeID;';
-        $classstr .= 'public $ContentObjectID;';
-        $classstr .= 'public $ContentObjectName;';
-        $classstr .= 'public $ParentNodeID;';
-        $classstr .= 'public $ParentName;';
-        $classstr .= 'public $URLAlias;';
-        $classstr .= 'public $ClassIdentifier;';
-        $classstr .= 'public $content_published = 0;';
-        $classstr .= 'public $content_modified = 0;';
-        
-        foreach ( $list as $class2 )
-        {
-            $classstr .= 'public $' . self::REFSET_IDENTIFIER . $class2->attribute( 'identifier' ) . '= "";';
-        }
-        $classstr .= " };";
-        eval( $classstr );
-        $LatestNodesByListEntityType = $metadata->addEntityType( new ReflectionClass( 'LatestNodes' ), 'LatestNodes', 'eZPublish' );
-        
-        $LatestNodesResourceSet = $metadata->addResourceSet( 'LatestNodes', $LatestNodesByListEntityType );
-        
-        $metadata->addKeyProperty( $LatestNodesByListEntityType, 'NodeID', EdmPrimitiveType::INT32 );
-        $metadata->addPrimitiveProperty( $LatestNodesByListEntityType, 'MainNodeID', EdmPrimitiveType::INT32 );
-        $metadata->addPrimitiveProperty( $LatestNodesByListEntityType, 'ContentObjectID', EdmPrimitiveType::INT32 );
-        $metadata->addPrimitiveProperty( $LatestNodesByListEntityType, 'ParentNodeID', EdmPrimitiveType::INT32 );
-        $metadata->addPrimitiveProperty( $LatestNodesByListEntityType, 'ContentObjectName', EdmPrimitiveType::STRING );
-        $metadata->addPrimitiveProperty( $LatestNodesByListEntityType, 'ParentName', EdmPrimitiveType::STRING );
-        $metadata->addPrimitiveProperty( $LatestNodesByListEntityType, 'URLAlias', EdmPrimitiveType::STRING );
-        $metadata->addPrimitiveProperty( $LatestNodesByListEntityType, 'ClassIdentifier', EdmPrimitiveType::STRING );
-        $metadata->addPrimitiveProperty( $LatestNodesByListEntityType, 'content_published', EdmPrimitiveType::DATETIME );
-        $metadata->addPrimitiveProperty( $LatestNodesByListEntityType, 'content_modified', EdmPrimitiveType::DATETIME );
-        
-        foreach ( $classnames as $classname )
-        {
-            $metadata->addResourceSetReferenceProperty( $LatestNodesByListEntityType, self::REFSET_IDENTIFIER . $classname, $metaclasses[$classname]['ResourceSet'] );
         }
         
         foreach ( xrowODataUtils::plugins() as $plugin )

@@ -17,7 +17,6 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
     private $ExpressionProvider;
     
     private $special_resources = array( 
-        'LatestNodes' , 
         'Nodes' , 
         'ContentObjects' 
     );
@@ -65,9 +64,31 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         }
         
         $returnResult = array();
+        
         /* @var $class eZContentClass */
         $class = eZContentClass::fetchByIdentifier( $resourceSetName );
-        if ( $class )
+        if ( isset( $_GET['search'] ) and $class )
+        {
+            $searchArray = eZSearch::buildSearchArray();
+            $params = array();
+            $class = eZContentClass::fetchByIdentifier( $resourceSetName );
+            
+            $params['SearchContentClassID'] = $class->ID;
+            
+            self::addSearchFieldFilter( $params, $filter, $class );
+            self::ezpOrderByQueryPart( $params, $orderby );
+            self::addLimitOffset( $params, $top, $skip );
+            self::addSearchParams( $params );
+            $searchResult = eZSearch::search( $_GET['search'], $params );
+            if ( $searchResult === false )
+            {
+                throw new Exception( "Search return invalid result" );
+            }
+            $list = $searchResult['SearchResult'];
+            $returnResult = $this->_serializeContentObjectTreeNodes( $list );
+            return $returnResult;
+        }
+        elseif ( $class )
         {
             $params = array( 
                 'ClassFilterType' => 'include' , 
@@ -189,7 +210,55 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             $params['DepthOperator'] = false;
         }
     }
-
+    static function addSearchFieldFilter( &$params, $filters, $class )
+    {
+        $attribute_filter = array();
+        foreach ( $filters as $filter )
+        {
+            if ( $filter[0] === 'ParentNodeID' and $filter[1] === ezpExpressionProvider::EQUAL )
+            {
+                $params['SearchSubTreeArray'][] = $filter[2];
+                continue;
+            }
+            elseif ( $filter[0] === 'ParentNodeID' )
+            {
+                throw new Exception( 'Field ParentNodeID will only support eq operator.' );
+            }
+            if ( $filter[0] === 'city' )
+            {
+                $params['ExtendedAttributeFilter'] = array( 
+                    'id' => 'xrowgis_extendedfilter' , 
+                    'params' => array( array( 'xrowGISExtendedAttributeFilter::city', 'city' => $filter[2] ) ) 
+                );
+                continue;
+            }
+            if ( $class->fetchAttributeByIdentifier( $filter[0] ) )
+            {
+                $filter[0] = $class->attribute( 'identifier' ) . '/' . $filter[0];
+            }
+            elseif ( $filter[0] === 'ContentObjectName' )
+            {
+                $filter[0] = 'name';
+            }
+            elseif ( $filter[0] === 'ClassIdentifier' )
+            {
+                $filter[0] = 'class_name';
+            }
+            elseif ( $filter[0] === 'content_published' )
+            {
+                $filter[0] = 'published';
+            }
+            elseif ( $filter[0] === 'content_modified' )
+            {
+                $filter[0] = 'modified';
+            }
+            $attribute_filter[] = $filter;
+        }
+        if ( count( $attribute_filter ) > 0 )
+        {
+            $params['AttributeFilter'] = $attribute_filter;
+        }
+    }
     static function addFieldFilter( &$params, $filters, $class )
     {
         $attribute_filter = array();
@@ -361,31 +430,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         $navigationPropName = str_replace( ezpMetadata::REFSET_IDENTIFIER, '', $navigationPropName );
         
         $result = array();
-        if ( isset( $_GET['list'] ) )
-        {
-            $NodeIDs = explode( ',', $_GET['list'] );
-            $list = array();
-            foreach ( $NodeIDs as $NodeID )
-            {
-                $params = array( 
-                    'ClassFilterType' => 'include' , 
-                    'ClassFilterArray' => array( 
-                        $navigationPropName 
-                    ) 
-                );
-                self::ezpOrderByQueryPart( $params, 'content_published desc' );
-                $params['Limit'] = 1;
-                $params['Depth'] = false;
-                $params['DepthOperator'] = false;
-                
-                $list2 = eZContentObjectTreeNode::subTreeByNodeID( $params, (int) $NodeID );
-                if ( is_array( $list2 ) )
-                {
-                    $list = array_merge( $list, $list2 );
-                }
-            }
-        }
-        elseif ( isset( $_GET['search'] ) )
+        if ( isset( $_GET['search'] ) )
         {
             $searchArray = eZSearch::buildSearchArray();
             $params = array();
@@ -693,6 +738,14 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                         $value->city = $content->city;
                         $value->state = $content->state;
                         $value->country = $content->country;
+                        $reference = $content->object();
+                        if ( $reference instanceof eZContentObject )
+                        {
+                            $value->ReferenceName = $reference->name();
+                            $value->ReferenceMainNodeID = $reference->mainNodeID();
+                            $value->ReferenceClassIdentifier = $reference->contentClassIdentifier();
+                            $value->ReferenceURI = self::buildURI($reference);
+                        }
                         $object->{$key} = $value;
                         break;
                     case 'xrowmetadata':
@@ -768,7 +821,10 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         $GLOBALS['ODATARecursionCounter'] --;
         return $object;
     }
-
+    static function buildURI( eZContentObject $object )
+    {
+        return  $object->contentClassIdentifier() . '(NodeID=' . $object->mainNodeID() . ')';
+    }
     static function transformLinksToRemoteLinks( DOMNodeList $nodeList, &$objectstore )
     {
         foreach ( $nodeList as $node )
