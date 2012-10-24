@@ -213,6 +213,10 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
     static function addSearchFieldFilter( &$params, $filters, $class )
     {
         $attribute_filter = array();
+        if ( count( $filters ) === 3 and !is_array( $filters[0] ) )
+        {
+            $filters = array( $filters );
+        }
         foreach ( $filters as $filter )
         {
             if ( $filter[0] === 'ParentNodeID' and $filter[1] === ezpExpressionProvider::EQUAL )
@@ -262,6 +266,10 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
     static function addFieldFilter( &$params, $filters, $class )
     {
         $attribute_filter = array();
+        if ( count( $filters ) === 3 and !is_array( $filters[0] ) )
+        {
+            $filters = array( $filters );
+        }
         foreach ( $filters as $filter )
         {
             if ( $filter[0] === 'ParentNodeID' and $filter[1] === ezpExpressionProvider::EQUAL )
@@ -741,10 +749,10 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                         $reference = $content->object();
                         if ( $reference instanceof eZContentObject )
                         {
-                            $value->ReferenceName = $reference->name();
-                            $value->ReferenceMainNodeID = $reference->mainNodeID();
-                            $value->ReferenceClassIdentifier = $reference->contentClassIdentifier();
-                            $value->ReferenceURI = self::buildURI($reference);
+                        	$value->ReferenceName = $reference->name();
+                        	$value->ReferenceMainNodeID = $reference->mainNodeID();
+                        	$value->ReferenceClassIdentifier = $reference->contentClassIdentifier();
+                        	$value->ReferenceURI = self::buildURI($reference);
                         }
                         $object->{$key} = $value;
                         break;
@@ -823,7 +831,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
     }
     static function buildURI( eZContentObject $object )
     {
-        return  $object->contentClassIdentifier() . '(NodeID=' . $object->mainNodeID() . ')';
+    	return  $object->contentClassIdentifier() . '(NodeID=' . $object->mainNodeID() . ')';
     }
     static function transformLinksToRemoteLinks( DOMNodeList $nodeList, &$objectstore )
     {
