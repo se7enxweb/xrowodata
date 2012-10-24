@@ -315,7 +315,11 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         {
             $params['AttributeFilter'] = $attribute_filter;
         }
-        if ( ! isset( $params['ParentNodeID'] ) )
+        if( isset( $params['ParentNodeIDFilter'] ) )
+        {
+            $params['ParentNodeID'] = $params['ParentNodeIDFilter'];
+        }
+        else if ( ! isset( $params['ParentNodeID'] ) )
         {
             $params['ParentNodeID'] = 2;
         }
