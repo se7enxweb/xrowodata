@@ -813,6 +813,9 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                     case 'ezinteger':
                         $object->{$key} = (int) $attribute->toString();
                         break;
+                    case 'hmregexpline':
+                        $object->{$key} = (string) $attribute->content(); 
+                        break;
                     case 'ezdate':
                     case 'ezdatetime':
                     case 'time':
