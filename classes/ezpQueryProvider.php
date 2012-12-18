@@ -15,13 +15,13 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
      * @var ExpressionProvider
      */
     private $ExpressionProvider;
-    
     private $special_resources = array( 
         'Nodes' , 
         'ContentObjects' 
     );
 
     /**
+     *
      * @see ODataProducer\Providers\IDataServiceQueryProvider2::canApplyQueryOptions()
      */
     public function canApplyQueryOptions()
@@ -30,6 +30,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
     }
 
     /**
+     *
      * @see ODataProducer\Providers\IDataServiceQueryProvider2::getExpressionProvider()
      */
     public function getExpressionProvider()
@@ -43,6 +44,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
     }
 
     /**
+     *
      * @see ODataProducer\Providers\IDataServiceQueryProvider2::getResourceSet()
      */
     public function getResourceSet( ResourceSet $resourceSet, $filter = null, $select = null, $orderby = null, $top = null, $skiptoken = null )
@@ -76,7 +78,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             $params['SearchContentClassID'] = $class->ID;
             
             self::addSearchFieldFilter( $params, $filter, $class );
-            self::ezpOrderByQueryPart( $params, $orderby );
+            self::ezpOrderByQueryPart( $params, $orderby, $class );
             self::addLimitOffset( $params, $top, $skip );
             self::addSearchParams( $params );
             $searchResult = eZSearch::search( $_GET['search'], $params );
@@ -84,6 +86,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             {
                 throw new Exception( "Search return invalid result" );
             }
+            $GLOBALS['_odata_server_count'] = $searchResult['SearchCount'];
             $list = $searchResult['SearchResult'];
             $returnResult = $this->_serializeContentObjectTreeNodes( $list );
             return $returnResult;
@@ -97,7 +100,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                 ) 
             );
             self::addFieldFilter( $params, $filter, $class );
-            self::ezpOrderByQueryPart( $params, $orderby );
+            self::ezpOrderByQueryPart( $params, $orderby, $class );
             self::addLimitOffset( $params, $top, $skiptoken );
             self::addParams( $params );
             if ( empty( $params['SortBy'] ) )
@@ -114,6 +117,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
     }
 
     /**
+     *
      * @see ODataProducer\Providers\IDataServiceQueryProvider2::getResourceFromResourceSet()
      */
     public function getResourceFromResourceSet( ResourceSet $resourceSet, KeyDescriptor $keyDescriptor )
@@ -181,10 +185,10 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         $parameters['IgnoreVisibility'] = false;
         $parameters['Limitation'] = null;
         
-        #$params['SortArray'] = array( array( 
-        #    'relevance' , 
-        #    'desc' 
-        #) );
+        // params['SortArray'] = array( array(
+        // 'relevance' ,
+        // 'desc'
+        // );
         $params['SortArray'] = array( 
             array( 
                 'published' , 
@@ -210,13 +214,11 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             $params['DepthOperator'] = false;
         }
     }
+
     static function addSearchFieldFilter( &$params, $filters, $class )
     {
         $attribute_filter = array();
-        if ( count( $filters ) === 3 and !is_array( $filters[0] ) )
-        {
-            $filters = array( $filters );
-        }
+        $filters = self::flattenFilter( $filters );
         foreach ( $filters as $filter )
         {
             if ( $filter[0] === 'ParentNodeID' and $filter[1] === ezpExpressionProvider::EQUAL )
@@ -232,7 +234,12 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             {
                 $params['ExtendedAttributeFilter'] = array( 
                     'id' => 'xrowgis_extendedfilter' , 
-                    'params' => array( array( 'xrowGISExtendedAttributeFilter::city', 'city' => $filter[2] ) ) 
+                    'params' => array( 
+                        array( 
+                            'xrowGISExtendedAttributeFilter::city' , 
+                            'city' => $filter[2] 
+                        ) 
+                    ) 
                 );
                 continue;
             }
@@ -263,13 +270,52 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             $params['AttributeFilter'] = $attribute_filter;
         }
     }
-    static function addFieldFilter( &$params, $filters, $class )
+
+    static function flattenFilter( $filters )
+    {
+        if ( count( $filters ) === 3 and ! is_array( $filters[0] ) )
+        {
+            $filters = array( 
+                $filters 
+            );
+        }
+        
+        $filterstmp = $filters;
+        $filters = array();
+        foreach ( $filterstmp as $filter )
+        {
+            
+            if ( count( $filter ) == 3 and in_array( $filter[1], array( 
+                ezpExpressionProvider::EQUAL , 
+                ezpExpressionProvider::LESSTHAN_OR_EQUAL , 
+                ezpExpressionProvider::GREATERTHAN , 
+                ezpExpressionProvider::GREATERTHAN_OR_EQUAL , 
+                ezpExpressionProvider::LESSTHAN , 
+                ezpExpressionProvider::NOTEQUAL 
+            ) ) )
+            {
+                
+                $filters[] = $filter;
+            }
+            else
+            {
+                foreach ( $filter as $filtertmp )
+                {
+                    
+                    $filters[] = $filtertmp;
+                }
+            }
+        }
+        
+        return $filters;
+    }
+
+    static function addFieldFilter( &$params, $filters, eZContentClass $class )
     {
         $attribute_filter = array();
-        if ( count( $filters ) === 3 and !is_array( $filters[0] ) )
-        {
-            $filters = array( $filters );
-        }
+        
+        $filters = self::flattenFilter( $filters );
+        
         foreach ( $filters as $filter )
         {
             if ( $filter[0] === 'ParentNodeID' and $filter[1] === ezpExpressionProvider::EQUAL )
@@ -285,7 +331,12 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             {
                 $params['ExtendedAttributeFilter'] = array( 
                     'id' => 'xrowgis_extendedfilter' , 
-                    'params' => array( array( 'xrowGISExtendedAttributeFilter::city', 'city' => $filter[2] ) ) 
+                    'params' => array( 
+                        array( 
+                            'xrowGISExtendedAttributeFilter::city' , 
+                            'city' => $filter[2] 
+                        ) 
+                    ) 
                 );
                 continue;
             }
@@ -311,18 +362,20 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             }
             $attribute_filter[] = $filter;
         }
+        
         if ( count( $attribute_filter ) > 0 )
         {
             $params['AttributeFilter'] = $attribute_filter;
         }
-        if( isset( $params['ParentNodeIDFilter'] ) )
+        if ( isset( $params['ParentNodeIDFilter'] ) )
         {
-        	$params['ParentNodeID'] = $params['ParentNodeIDFilter'];
+            $params['ParentNodeID'] = $params['ParentNodeIDFilter'];
         }
-        else if ( ! isset( $params['ParentNodeID'] ) )
-        {
-            $params['ParentNodeID'] = 2;
-        }
+        else 
+            if ( ! isset( $params['ParentNodeID'] ) )
+            {
+                $params['ParentNodeID'] = 2;
+            }
     }
 
     static function addLimitOffset( &$params, $top, $skip )
@@ -367,7 +420,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         $params['MainNodeOnly'] = true;
     }
 
-    static function ezpOrderByQueryPart( &$params, InternalOrderByInfo $orderby )
+    static function ezpOrderByQueryPart( &$params, InternalOrderByInfo $orderby, eZContentClass $class )
     {
         if ( ! $orderby )
         {
@@ -377,58 +430,73 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         $orders = $orderby->getOrderByInfo()->getOrderByPathSegments();
         foreach ( $orders as $orderpart )
         {
+            
             $segments = $orderpart->getSubPathSegments();
-            if ( $segments[0]->getName() == 'NodeID' )
+            $name = $segments[0]->getName();
+            if ( $name == 'NodeID' )
             {
                 return false;
             }
-            switch ( $segments[0]->getName() )
+
+            if ( $class->fetchAttributeByIdentifier( $name ) )
             {
-                case 'content_published':
-                    $attribute = 'published';
-                    break;
-                case 'content_modified':
-                    $attribute = 'modified';
-                    break;
-                case 'content_state':
-                    $attribute = 'state';
-                    break;
-                case 'section':
-                    $attribute = 'section';
-                    break;
-                case 'priority':
-                    $attribute = 'priority';
-                    break;
-                case 'path':
-                    $attribute = 'path';
-                    break;
-                case 'owner':
-                    $attribute = 'owner';
-                    break;
-                case 'name':
-                    $attribute = 'name';
-                    break;
-                case 'class_name':
-                    $attribute = 'class_name';
-                    break;
-                case 'class_identifier':
-                    $attribute = 'class_identifier';
-                    break;
-                case 'depth':
-                    $attribute = 'depth';
-                    break;
-                default:
-                    throw new Exception( "Wrong attribute name '" . $segments[0]->getName() . "' for ordering" );
-                    break;
+                $params['SortBy'][] = array( 
+                    'attribute' ,
+                    $orderpart->isAscending() ,
+                    $class->attribute( 'identifier'). '/' . $name
+                );
             }
-            $params['SortBy'][] = array( 
-                $attribute , 
-                $orderpart->isAscending() 
-            );
+            else
+            {
+                switch ( $name )
+                {
+                    case 'content_published':
+                        $attribute = 'published';
+                        break;
+                    case 'content_modified':
+                        $attribute = 'modified';
+                        break;
+                    case 'content_state':
+                        $attribute = 'state';
+                        break;
+                    case 'section':
+                        $attribute = 'section';
+                        break;
+                    case 'priority':
+                        $attribute = 'priority';
+                        break;
+                    case 'path':
+                        $attribute = 'path';
+                        break;
+                    case 'owner':
+                        $attribute = 'owner';
+                        break;
+                    case 'name':
+                        $attribute = 'name';
+                        break;
+                    case 'class_name':
+                        $attribute = 'class_name';
+                        break;
+                    case 'class_identifier':
+                        $attribute = 'class_identifier';
+                        break;
+                    case 'depth':
+                        $attribute = 'depth';
+                        break;
+                    default:
+                        throw new Exception( "Wrong attribute name '" . $name . "' for ordering" );
+                        break;
+                }
+                $params['SortBy'][] = array( 
+                    $attribute , 
+                    $orderpart->isAscending() 
+                );
+            }
         }
     }
 
     /**
+     *
      * @see ODataProducer\Providers\IDataServiceQueryProvider2::getRelatedResourceSet()
      */
     public function getRelatedResourceSet( ResourceSet $sourceResourceSet, $sourceEntityInstance, ResourceSet $targetResourceSet, ResourceProperty $targetProperty, $filter = null, $select = null, $orderby = null, $top = null, $skip = null )
@@ -450,7 +518,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             
             $params['SearchContentClassID'] = $class->ID;
             
-            self::ezpOrderByQueryPart( $params, $orderby );
+            self::ezpOrderByQueryPart( $params, $orderby, $class );
             self::addLimitOffset( $params, $top, $skip );
             self::addSearchParams( $params );
             $searchResult = eZSearch::search( $_GET['search'], $params );
@@ -458,7 +526,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             {
                 throw new Exception( "Search return invalid result" );
             }
-            
+            $GLOBALS['_odata_server_count'] = $searchResult['SearchCount'];
             $list = $searchResult['SearchResult'];
         }
         else
@@ -470,7 +538,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                 ) 
             );
             
-            self::ezpOrderByQueryPart( $params, $orderby );
+            self::ezpOrderByQueryPart( $params, $orderby, $class );
             self::addLimitOffset( $params, $top, $skip );
             self::addParams( $params );
             if ( empty( $params['SortBy'] ) )
@@ -485,6 +553,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
     }
 
     /**
+     *
      * @see ODataProducer\Providers\IDataServiceQueryProvider2::getResourceFromRelatedResourceSet()
      */
     public function getResourceFromRelatedResourceSet( ResourceSet $sourceResourceSet, $sourceEntityInstance, ResourceSet $targetResourceSet, ResourceProperty $targetProperty, KeyDescriptor $keyDescriptor )
@@ -496,6 +565,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
     }
 
     /**
+     *
      * @see ODataProducer\Providers\IDataServiceQueryProvider2::getRelatedResourceReference()
      */
     public function getRelatedResourceReference( ResourceSet $sourceResourceSet, $sourceEntityInstance, ResourceSet $targetResourceSet, ResourceProperty $targetProperty )
@@ -508,9 +578,10 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
 
     /**
      * Serialize the mysql result array into Category objects
-     * 
-     * @param array(array) $result result of the mysql query
-     * 
+     *
+     * @param array(array) $result
+     *            result of the mysql query
+     *            
      * @return array(Object)
      */
     private function _serializeContentObjectTreeNodes( $list = array() )
@@ -531,7 +602,6 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                     {
                         eZDebug::writeError( $e->getMessage(), __METHOD__ );
                     }
-                
                 }
                 else
                 {
@@ -565,9 +635,9 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         {
             $object = new $ClassSpecial();
         }
-        $object->NodeID = (int)$node->NodeID;
-        $object->MainNodeID = (int)$node->MainNodeID;
-        //$object->ContentObjectID = (int)$node->ContentObjectID;
+        $object->NodeID = (int) $node->NodeID;
+        $object->MainNodeID = (int) $node->MainNodeID;
+        // $object->ContentObjectID = (int)$node->ContentObjectID;
         $object->ContentObjectName = $node->attribute( 'name' );
         $parent = $node->attribute( 'parent' );
         $object->ParentNodeID = $parent->NodeID;
@@ -575,7 +645,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         $object->URLAlias = $node->attribute( 'url_alias' );
         $object->ClassIdentifier = $node->attribute( 'class_identifier' );
         $object->Depth = $node->Depth;
-
+        
         $date = new DateTime( '@' . $co->attribute( 'published' ) );
         $date->setTimezone( new DateTimeZone( date_default_timezone_get() ) );
         $object->content_published = $date->format( DateTime::W3C );
@@ -584,7 +654,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         $object->content_modified = $date->format( DateTime::W3C );
         $dm = $node->attribute( 'data_map' );
         $testArray = $GLOBALS['ODATACLASSMATRIX'][$node->attribute( 'class_identifier' )];
-
+        
         if ( count( array_diff( array_keys( $dm ), array_keys( $testArray ) ) ) > 0 )
         {
             throw new Exception( 'Content attributes do not match contentclass attributes of object #' . $node->ContentObjectID . ' wiht class ' . $node->attribute( 'class_identifier' ) );
@@ -603,7 +673,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
             {
                 continue;
             }
-
+            
             if ( $attribute )
             {
                 switch ( $attribute->DataTypeString )
@@ -754,10 +824,10 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                         $reference = $content->object();
                         if ( $reference instanceof eZContentObject )
                         {
-                        	$value->ReferenceName = $reference->name();
-                        	$value->ReferenceMainNodeID = $reference->mainNodeID();
-                        	$value->ReferenceClassIdentifier = $reference->contentClassIdentifier();
-                        	$value->ReferenceURI = self::buildURI($reference);
+                            $value->ReferenceName = $reference->name();
+                            $value->ReferenceMainNodeID = $reference->mainNodeID();
+                            $value->ReferenceClassIdentifier = $reference->contentClassIdentifier();
+                            $value->ReferenceURI = self::buildURI( $reference );
                         }
                         $object->{$key} = $value;
                         break;
@@ -814,7 +884,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                         $object->{$key} = (int) $attribute->toString();
                         break;
                     case 'hmregexpline':
-                        $object->{$key} = (string) $attribute->content(); 
+                        $object->{$key} = (string) $attribute->content();
                         break;
                     case 'ezdate':
                     case 'ezdatetime':
@@ -837,10 +907,12 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         $GLOBALS['ODATARecursionCounter'] --;
         return $object;
     }
+
     static function buildURI( eZContentObject $object )
     {
-    	return  $object->contentClassIdentifier() . '(NodeID=' . $object->mainNodeID() . ')';
+        return $object->contentClassIdentifier() . '(NodeID=' . $object->mainNodeID() . ')';
     }
+
     static function transformLinksToRemoteLinks( DOMNodeList $nodeList, &$objectstore )
     {
         foreach ( $nodeList as $node )
@@ -908,9 +980,10 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
 
     /**
      * Serialize the mysql result array into Category objects
-     * 
-     * @param array(array) $result result of the mysql query
-     * 
+     *
+     * @param array(array) $result
+     *            result of the mysql query
+     *            
      * @return array(Object)
      */
     private function _serializeNodes( $result )
@@ -926,9 +999,10 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
 
     /**
      * Serialize the mysql row into Category object
-     * 
-     * @param array $record each category row
-     * 
+     *
+     * @param array $record
+     *            each category row
+     *            
      * @return Object
      */
     private function _serializeNode( $record )
