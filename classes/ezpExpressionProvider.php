@@ -82,7 +82,12 @@ class ezpExpressionProvider implements IExpressionProvider
                  return $left;
                 break;
             case ExpressionType::OR_LOGICAL:
-                throw new Exception( __METHOD__ . '() LOGICAL OR will be implemented later' );
+                if ( in_array( "ParentNodeID", $right ) and ( ( is_array( $left[0] ) and in_array( "ParentNodeID", $left[0] ) ) or in_array( "ParentNodeID", $left ) ) )
+                {
+                    array_push($left, $right);
+                    return $left;
+                }
+                throw new Exception( __METHOD__ . '() LOGICAL OR will be implemented later and is not supported for expression ' . print_r( $left, true ) .  ' or ' . print_r( $right, true ) );
                 break;
             default:
                 throw new \InvalidArgumentException( 'onLogicalExpression' );

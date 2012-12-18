@@ -25,6 +25,20 @@ Concrete Examples:
 /frontpage(NodeID=148720)/RefSetnews?$top=10&$skip=10&$orderby=content_published desc
 /frontpage(NodeID=148720)/RefSetnews?$top=10&$skip=20&$orderby=content_published desc
 
+Possible "order by" Paramenter
+ - content_published
+ - content_modified
+ - content_state
+ - section
+ - priority
+ - path
+ - owner
+ - name
+ - class_name
+ - class_identifier
+ - depth
+
+
 Abstact Example:
 /[ContentClass](NodeID=[ID of Node])?$skip=[number]&$top=[number max 100]&$orderby=[number max 100 desc|asc]
 How to view your data:

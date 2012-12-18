@@ -418,7 +418,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
                     $attribute = 'depth';
                     break;
                 default:
-                    throw new Exception( "Wrong attribute name '" . $attribute . "' for ordering" );
+                    throw new Exception( "Wrong attribute name '" . $segments[0]->getName() . "' for ordering" );
                     break;
             }
             $params['SortBy'][] = array( 
