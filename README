@@ -4,7 +4,7 @@ Active the extension.
 
 Useage
 
-The service will be available over the common REST API of eZ Publish (http://www.exmaple.com/api/odata/v1/ezpublish.svc/)
+The service will be available over the common REST API of eZ Publish (https://www.exmaple.com/api/odata/v1/ezpublish.svc/)
 
 Protocol Implementations
 
