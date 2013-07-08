@@ -3,4 +3,4 @@
 	url = https://github.com/xrowgmbh/odataphpprod.git
 [submodule "src/OData_PHP_SDK"]
 	path = src/OData_PHP_SDK
-	url = https://github.com/MSOpenTech/odataphpprod.git
+	url = https://github.com/xrowgmbh/OData_PHP_SDK.git
