@@ -637,7 +637,7 @@ class ezpQueryProvider implements IDataServiceQueryProvider2
         }
         $object->NodeID = (int) $node->NodeID;
         $object->MainNodeID = (int) $node->MainNodeID;
-        // $object->ContentObjectID = (int)$node->ContentObjectID;
+        $object->ContentObjectID = (int)$node->ContentObjectID;
         $object->ContentObjectName = $node->attribute( 'name' );
         $parent = $node->attribute( 'parent' );
         $object->ParentNodeID = $parent->NodeID;
